@@ -1,13 +1,10 @@
 const mongoose = require('mongoose');
 
 const connectDB = async () => {
-  const uri = process.env.MONGO_URI || 'mongodb://localhost:27017/splitin';
   try {
-    await mongoose.connect(uri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    console.log('MongoDB connected');
+    // החיבור מסתמך על משתנה הסביבה שהגדרת ב-.env
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log('MongoDB connected successfully');
   } catch (err) {
     console.error('MongoDB connection error:', err.message);
     process.exit(1);
