@@ -7,4 +7,4 @@ const groupSchema = new mongoose.Schema({
   avgPerPerson: Number,
   isActive: { type: Boolean, default: true }
 });
-module.exports = mongoose.model('Group', groupSchema);
+module.exports = mongoose.model('Group', groupSchema ,'Group');

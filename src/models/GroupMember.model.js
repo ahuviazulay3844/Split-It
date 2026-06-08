@@ -9,4 +9,4 @@ const groupMemberSchema = new mongoose.Schema({
   isPaid: Boolean,
   status: { type: String, enum: ['Active', 'Settled'] }
 });
-module.exports = mongoose.model('GroupMember', groupMemberSchema);
+module.exports = mongoose.model('GroupMember', groupMemberSchema ,'GroupMember');

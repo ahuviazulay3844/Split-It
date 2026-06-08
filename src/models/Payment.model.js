@@ -6,4 +6,4 @@ const paymentSchema = new mongoose.Schema({
   amount: Number,
   isConfirmed: { type: Boolean, default: false }
 });
-module.exports = mongoose.model('Payment', paymentSchema);
+module.exports = mongoose.model('Payment', paymentSchema, 'Payment');
