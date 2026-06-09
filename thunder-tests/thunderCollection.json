@@ -1,0 +1,130 @@
+{
+  "client": "Thunder Client",
+  "collectionName": "SplitIt-E2E Tests",
+  "dateExported": "2026-06-09T18:10:00.000Z",
+  "version": "1.2",
+  "folders": [],
+  "requests": [
+    {
+      "_id": "splitit-register",
+      "colId": "splitit-e2e-tests",
+      "containerId": "",
+      "name": "Register",
+      "url": "{{baseUrl}}/api/auth/register",
+      "method": "POST",
+      "sortNum": 10000,
+      "created": "2026-06-09T18:10:00.000Z",
+      "modified": "2026-06-09T18:10:00.000Z",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "params": [],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"firstName\": \"E2E\",\n  \"familyName\": \"Tester\",\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"phone\": \"+15550000001\"\n}",
+        "form": []
+      },
+      "tests": [
+        {
+          "type": "resCode",
+          "custom": "",
+          "action": "equal",
+          "value": "201"
+        }
+      ],
+      "preReq": {
+        "text": "const email = `splitit.e2e.${Date.now()}@example.com`;\ntc.environment.set('testEmail', email);",
+        "form": []
+      },
+      "postReq": {
+        "text": "",
+        "form": []
+      }
+    },
+    {
+      "_id": "splitit-login",
+      "colId": "splitit-e2e-tests",
+      "containerId": "",
+      "name": "Login",
+      "url": "{{baseUrl}}/api/auth/login",
+      "method": "POST",
+      "sortNum": 20000,
+      "created": "2026-06-09T18:10:00.000Z",
+      "modified": "2026-06-09T18:10:00.000Z",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "params": [],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+        "form": []
+      },
+      "tests": [
+        {
+          "type": "resCode",
+          "custom": "",
+          "action": "equal",
+          "value": "200"
+        }
+      ],
+      "preReq": {
+        "text": "",
+        "form": []
+      },
+      "postReq": {
+        "text": "const body = tc.response.json;\ntc.environment.set('jwt', body.data.token);",
+        "form": []
+      }
+    },
+    {
+      "_id": "splitit-create-group",
+      "colId": "splitit-e2e-tests",
+      "containerId": "",
+      "name": "Create Group",
+      "url": "{{baseUrl}}/api/groups",
+      "method": "POST",
+      "sortNum": 30000,
+      "created": "2026-06-09T18:10:00.000Z",
+      "modified": "2026-06-09T18:10:00.000Z",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{jwt}}"
+        }
+      ],
+      "params": [],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"groupName\": \"E2E Test Group\",\n  \"memberIds\": []\n}",
+        "form": []
+      },
+      "tests": [
+        {
+          "type": "resCode",
+          "custom": "",
+          "action": "equal",
+          "value": "201"
+        }
+      ],
+      "preReq": {
+        "text": "",
+        "form": []
+      },
+      "postReq": {
+        "text": "",
+        "form": []
+      }
+    }
+  ]
+}
