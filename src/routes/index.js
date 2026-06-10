@@ -8,5 +8,6 @@ router.get('/health', health.health);
 router.use('/api/auth', require('./auth.routes'));
 router.use('/api/users', require('./user.routes'));
 router.use('/api/groups', require('./group.routes'));
+router.use('/api/expenses', require('./expense.routes'));
 
 module.exports = router;
