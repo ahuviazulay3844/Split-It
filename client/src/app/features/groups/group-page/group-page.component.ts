@@ -28,6 +28,7 @@ export class GroupPageComponent implements OnInit {
   protected readonly overview = signal<GroupOverview | null>(null);
   protected readonly balance = signal<PersonalBalance | null>(null);
   protected readonly expenses = signal<Expense[]>([]);
+  protected readonly categories = signal<CategoryRef[]>([]);
 
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
@@ -43,17 +44,6 @@ export class GroupPageComponent implements OnInit {
     }
     const me = ov.members.find((m) => m.user._id === this.currentUserId());
     return me?.roleInGroup === 'Admin';
-  });
-
-  /** Distinct categories actually used in this group's expenses. */
-  protected readonly categories = computed<CategoryRef[]>(() => {
-    const seen = new Map<string, CategoryRef>();
-    for (const exp of this.expenses()) {
-      if (exp.categoryId) {
-        seen.set(exp.categoryId._id, exp.categoryId);
-      }
-    }
-    return [...seen.values()];
   });
 
   /** Expense distribution by category (sum of amounts per category). */
@@ -116,11 +106,13 @@ export class GroupPageComponent implements OnInit {
       overview: this.groupService.getOverview(id),
       balance: this.groupService.getMyBalance(id),
       expenses: this.groupService.getExpenses(id),
+      categories: this.groupService.getCategories(),
     }).subscribe({
-      next: ({ overview, balance, expenses }) => {
+      next: ({ overview, balance, expenses, categories }) => {
         this.overview.set(overview.data ?? null);
         this.balance.set(balance.data ?? null);
         this.expenses.set(expenses.data ?? []);
+        this.categories.set(this.filterPickerCategories(categories.data ?? []));
         this.loading.set(false);
       },
       error: (err) => {
@@ -172,6 +164,12 @@ export class GroupPageComponent implements OnInit {
       map.set(m.user._id, `${m.user.firstName} ${m.user.familyName}`);
     }
     return map;
+  }
+
+  /** Hide legacy English defaults; empty selection already maps to General on the server. */
+  private filterPickerCategories(categories: CategoryRef[]): CategoryRef[] {
+    const legacy = new Set(['Food', 'General']);
+    return categories.filter((category) => !legacy.has(category.name));
   }
 
   private toChartData(totals: Map<string, number>): ChartData {

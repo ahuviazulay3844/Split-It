@@ -8,7 +8,7 @@ import {
   GroupSummary,
   PersonalBalance,
 } from '../models/group.model';
-import { CreateExpensePayload, Expense } from '../models/expense.model';
+import { CategoryRef, CreateExpensePayload, Expense } from '../models/expense.model';
 import { ApiService } from './api.service';
 
 interface AddExpenseResult {
@@ -37,6 +37,11 @@ export class GroupService {
   /** The group's expenses (newest first). */
   getExpenses(groupId: string): Observable<ApiResponse<Expense[]>> {
     return this.api.get<ApiResponse<Expense[]>>(`/groups/${groupId}/expenses`);
+  }
+
+  /** All expense categories available for pickers. */
+  getCategories(): Observable<ApiResponse<CategoryRef[]>> {
+    return this.api.get<ApiResponse<CategoryRef[]>>('/categories');
   }
 
   /**
