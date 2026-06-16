@@ -37,9 +37,20 @@
     </nav>
 
     @if (activeTab() === 'login') {
-      <app-login-form (loggedIn)="onAuthenticated()" />
+      <app-login-form
+        (loggedIn)="onAuthenticated()"
+        (switchToRegister)="onSwitchToRegister($event)"
+      />
     } @else {
-      <app-register-form (registered)="onAuthenticated()" />
+      @if (registerEmail()) {
+        <p class="text-sm font-light text-amber-200/80 mb-4 text-center">
+          No account found for this email. Complete registration below.
+        </p>
+      }
+      <app-register-form
+        [prefillEmail]="registerEmail()"
+        (registered)="onAuthenticated()"
+      />
     }
   </div>
 </div>

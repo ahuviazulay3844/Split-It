@@ -15,6 +15,7 @@ export class LoginFormComponent {
   private readonly auth = inject(AuthService);
 
   readonly loggedIn = output<void>();
+  readonly switchToRegister = output<string>();
 
   protected errorMessage: string | null = null;
   protected loadingState = false;
@@ -42,6 +43,14 @@ export class LoginFormComponent {
       },
       error: (err) => {
         this.loadingState = false;
+        const status = err.status;
+        const email = this.form.controls.email.getRawValue().trim().toLowerCase();
+
+        if (status === 401 && email) {
+          this.switchToRegister.emit(email);
+          return;
+        }
+
         this.errorMessage = err.error?.message ?? 'Invalid email or password';
       },
     });

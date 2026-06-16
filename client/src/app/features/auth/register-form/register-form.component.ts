@@ -1,4 +1,4 @@
-import { Component, inject, output } from '@angular/core';
+import { Component, effect, inject, input, output } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { RegisterPayload } from '../../../core/models/user.model';
@@ -15,6 +15,7 @@ export class RegisterFormComponent {
   private readonly auth = inject(AuthService);
 
   readonly registered = output<void>();
+  readonly prefillEmail = input<string>('');
 
   protected errorMessage: string | null = null;
   protected loadingState = false;
@@ -26,6 +27,15 @@ export class RegisterFormComponent {
     password: ['', [Validators.required, Validators.minLength(8), Validators.maxLength(128)]],
     phone: [''],
   });
+
+  constructor() {
+    effect(() => {
+      const email = this.prefillEmail().trim().toLowerCase();
+      if (email) {
+        this.form.controls.email.setValue(email);
+      }
+    });
+  }
 
   protected submit(): void {
     if (this.form.invalid) {

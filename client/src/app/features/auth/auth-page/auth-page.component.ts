@@ -16,9 +16,15 @@ export class AuthPageComponent {
   private readonly router = inject(Router);
 
   protected readonly activeTab = signal<AuthTab>('login');
+  protected readonly registerEmail = signal('');
 
   protected selectTab(tab: AuthTab): void {
     this.activeTab.set(tab);
+  }
+
+  protected onSwitchToRegister(email: string): void {
+    this.registerEmail.set(email);
+    this.activeTab.set('register');
   }
 
   protected onAuthenticated(): void {

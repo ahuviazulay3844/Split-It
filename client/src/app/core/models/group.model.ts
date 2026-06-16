@@ -16,3 +16,8 @@ export interface GroupSummary {
   balance: number;
   createdAt: string;
 }
+
+export interface CreateGroupPayload {
+  groupName: string;
+  memberIds: string[];
+}
