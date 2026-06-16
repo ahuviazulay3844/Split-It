@@ -12,6 +12,7 @@ router.use('/api/expenses', require('./expense.routes'));
 router.use('/api/categories', require('./category.routes'));
 router.use('/api/dashboard', require('./dashboard.routes'));
 router.use('/api/settlements', require('./settlement.routes'));
+router.use('/api/assistant', require('./assistant.routes'));
 
 // Catch-all: any unmatched route is forwarded to the centralized error handler.
 router.use((req, res, next) => {
