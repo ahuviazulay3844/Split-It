@@ -33,6 +33,8 @@ export class GroupPageComponent implements OnInit {
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly showAddExpense = signal(false);
+  /** Tracks which settlementId is currently being confirmed, if any. */
+  protected readonly settlingId = signal<string | null>(null);
 
   protected readonly currentUserId = computed(() => this.auth.user()?._id ?? '');
 
@@ -138,6 +140,23 @@ export class GroupPageComponent implements OnInit {
   protected onExpenseAdded(): void {
     this.showAddExpense.set(false);
     this.loadAll();
+  }
+
+  /** Marks a settlement as paid, then re-fetches the full group state. */
+  protected markAsPaid(settlementId: string): void {
+    if (this.settlingId()) {
+      return;
+    }
+    this.settlingId.set(settlementId);
+    this.groupService.settleDebt(settlementId).subscribe({
+      next: () => {
+        this.settlingId.set(null);
+        this.loadAll();
+      },
+      error: () => {
+        this.settlingId.set(null);
+      },
+    });
   }
 
   protected userName(user: { firstName: string; familyName: string }): string {

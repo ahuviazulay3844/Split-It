@@ -163,11 +163,9 @@ export class AddExpenseComponent implements OnInit {
       ...(categoryId ? { categoryId } : {}),
     };
 
-    // Only send custom splits when a strict subset of members shares the expense;
-    // otherwise let the server split equally among all active members.
-    if (!this.allSelected) {
-      payload.splits = this.buildEqualSplits(amount);
-    }
+    // Always send explicit splits so the server divides only among the chosen
+    // participants, never defaulting to the full active-member list.
+    payload.splits = this.buildEqualSplits(amount);
 
     this.loadingState = true;
     this.groupService.addExpense(payload).subscribe({

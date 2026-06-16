@@ -42,11 +42,11 @@ const getPersonalBalances = async (groupId, userId) => {
 
   const iOwe = settlements
     .filter((s) => String(s.fromUserId._id) === uid)
-    .map((s) => ({ to: s.toUserId, amount: s.amount }));
+    .map((s) => ({ settlementId: s._id, to: s.toUserId, amount: s.amount }));
 
   const owedToMe = settlements
     .filter((s) => String(s.toUserId._id) === uid)
-    .map((s) => ({ from: s.fromUserId, amount: s.amount }));
+    .map((s) => ({ settlementId: s._id, from: s.fromUserId, amount: s.amount }));
 
   return {
     net: membership.balance,
@@ -98,6 +98,7 @@ const getGroupOverview = async (groupId, userId) => {
       status: m.status,
     })),
     settlements: settlements.map((s) => ({
+      settlementId: s._id,
       from: s.fromUserId,
       to: s.toUserId,
       amount: s.amount,

@@ -51,4 +51,14 @@ export class GroupService {
   addExpense(payload: CreateExpensePayload): Observable<ApiResponse<AddExpenseResult>> {
     return this.api.post<ApiResponse<AddExpenseResult>, CreateExpensePayload>('/expenses', payload);
   }
+
+  /**
+   * Marks a settlement as paid. The server atomically flips the settlement's
+   * isSettled flag and adjusts both members' balances.
+   */
+  settleDebt(settlementId: string): Observable<ApiResponse<unknown>> {
+    return this.api.post<ApiResponse<unknown>, { settlementId: string }>('/settlements/settle', {
+      settlementId,
+    });
+  }
 }

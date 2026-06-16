@@ -34,6 +34,7 @@ export interface GroupMemberView {
 
 /** One transfer in the group's simplified settlement plan. */
 export interface SettlementView {
+  settlementId: string;
   from: UserSummary;
   to: UserSummary;
   amount: number;
@@ -56,6 +57,7 @@ export interface GroupOverview {
 
 /** A single "who I owe" / "who owes me" edge for the logged-in user. */
 export interface DebtEntry {
+  settlementId: string;
   to?: UserSummary;
   from?: UserSummary;
   amount: number;

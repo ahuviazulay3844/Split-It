@@ -93,10 +93,20 @@
             <p class="text-sm font-light text-slate-500">אין לך חובות פתוחים.</p>
           } @else {
             <ul class="divide-y divide-white/5">
-              @for (debt of bal.iOwe; track $index) {
-                <li class="flex items-center justify-between py-2.5">
-                  <span class="text-sm font-light text-white">{{ userName(debt.to!) }}</span>
-                  <span class="text-sm font-light text-red-300">₪{{ format(debt.amount) }}</span>
+              @for (debt of bal.iOwe; track debt.settlementId) {
+                <li class="flex items-center justify-between gap-3 py-2.5">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <span class="text-sm font-light text-white truncate">{{ userName(debt.to!) }}</span>
+                    <span class="text-sm font-light text-red-300 shrink-0">₪{{ format(debt.amount) }}</span>
+                  </div>
+                  <button
+                    type="button"
+                    class="shrink-0 text-xs font-medium tracking-wide rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-emerald-200 cursor-pointer transition-all hover:bg-emerald-400/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                    [disabled]="settlingId() === debt.settlementId"
+                    (click)="markAsPaid(debt.settlementId)"
+                  >
+                    {{ settlingId() === debt.settlementId ? 'מעבד…' : 'סימון כשולם' }}
+                  </button>
                 </li>
               }
             </ul>
@@ -156,14 +166,24 @@
             <p class="text-sm font-light text-slate-500">כל החברים מאוזנים.</p>
           } @else {
             <ul class="divide-y divide-white/5">
-              @for (s of ov.settlements; track $index) {
-                <li class="flex items-center justify-between gap-2 py-2.5">
-                  <span class="text-sm font-light text-white truncate">
-                    {{ userName(s.from) }}
-                    <span class="text-slate-500" aria-hidden="true">→</span>
-                    {{ userName(s.to) }}
-                  </span>
-                  <span class="text-sm font-light text-amber-200">₪{{ format(s.amount) }}</span>
+              @for (s of ov.settlements; track s.settlementId) {
+                <li class="flex items-center justify-between gap-3 py-2.5">
+                  <div class="min-w-0 flex items-center gap-2">
+                    <span class="text-sm font-light text-white truncate">
+                      {{ userName(s.from) }}
+                      <span class="text-slate-500" aria-hidden="true">→</span>
+                      {{ userName(s.to) }}
+                    </span>
+                    <span class="text-sm font-light text-amber-200 shrink-0">₪{{ format(s.amount) }}</span>
+                  </div>
+                  <button
+                    type="button"
+                    class="shrink-0 text-xs font-medium tracking-wide rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-emerald-200 cursor-pointer transition-all hover:bg-emerald-400/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                    [disabled]="settlingId() === s.settlementId"
+                    (click)="markAsPaid(s.settlementId)"
+                  >
+                    {{ settlingId() === s.settlementId ? 'מעבד…' : 'סימון כשולם' }}
+                  </button>
                 </li>
               }
             </ul>
