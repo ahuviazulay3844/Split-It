@@ -76,7 +76,14 @@ export class PieCardComponent {
     const prefix = this.valuePrefix();
     return {
       theme: 'dark',
-      y: { formatter: (val: number) => `${prefix}${(val ?? 0).toFixed(2)}` },
+      y: {
+        formatter: (val: number, opts?: { w?: { globals?: { series?: number[] } } }) => {
+          const series = opts?.w?.globals?.series ?? [];
+          const total = series.reduce((sum, v) => sum + (v ?? 0), 0);
+          const percent = total > 0 ? ((val ?? 0) / total) * 100 : 0;
+          return `${prefix}${(val ?? 0).toFixed(2)} (${percent.toFixed(1)}%)`;
+        },
+      },
     };
   });
 }

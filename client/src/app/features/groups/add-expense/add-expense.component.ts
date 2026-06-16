@@ -54,12 +54,10 @@ export class AddExpenseComponent implements OnInit {
     description: ['', [Validators.maxLength(200)]],
     amount: ['', [Validators.required, moneyValidator]],
     categoryId: [''],
-    payerId: [''],
   });
 
   ngOnInit(): void {
     this.selectedParticipants.set(new Set(this.members().map((m) => m.user._id)));
-    this.form.controls.payerId.setValue(this.currentUserId());
   }
 
   protected isParticipant(userId: string): boolean {
@@ -155,14 +153,14 @@ export class AddExpenseComponent implements OnInit {
     const amount = Number(this.form.controls.amount.value);
     const description = this.form.controls.description.value.trim();
     const categoryId = this.form.controls.categoryId.value;
-    const payerId = this.form.controls.payerId.value;
 
+    // The logged-in user is always the payer; only participants are chosen.
     const payload: CreateExpensePayload = {
       groupId: this.groupId(),
       amount,
+      payerId: this.currentUserId(),
       ...(description ? { description } : {}),
       ...(categoryId ? { categoryId } : {}),
-      ...(payerId ? { payerId } : {}),
     };
 
     // Only send custom splits when a strict subset of members shares the expense;

@@ -67,24 +67,17 @@ export class GroupPageComponent implements OnInit {
   });
 
   /**
-   * Expense distribution by user, based on each member's actual share. Because
-   * shares come straight from the server-stored `splits`, expenses that not
-   * everyone participates in are attributed correctly.
+   * Spending by user: how much each member actually paid (spent), attributed to
+   * the expense payer. The pie card renders each slice as a share of the total
+   * expenditure, so a member who paid ₪500 of a ₪510 total shows as ~98%.
    */
   protected readonly userChart = computed<ChartData>(() => {
     const names = this.userNameMap();
     const totals = new Map<string, number>();
 
     for (const exp of this.expenses()) {
-      const shares =
-        exp.splits.length > 0
-          ? exp.splits
-          : exp.participants.map((userId) => ({ userId, share: exp.amount / exp.participants.length }));
-
-      for (const { userId, share } of shares) {
-        const name = names.get(userId) ?? 'Former member';
-        totals.set(name, (totals.get(name) ?? 0) + share);
-      }
+      const name = names.get(exp.payerId._id) ?? this.userName(exp.payerId);
+      totals.set(name, (totals.get(name) ?? 0) + exp.amount);
     }
     return this.toChartData(totals);
   });
