@@ -10,5 +10,6 @@ router.use('/api/users', require('./user.routes'));
 router.use('/api/groups', require('./group.routes'));
 router.use('/api/expenses', require('./expense.routes'));
 router.use('/api/dashboard', require('./dashboard.routes'));
+router.use('/api/settlements', require('./settlement.routes'));
 
 module.exports = router;

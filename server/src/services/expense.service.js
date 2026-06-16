@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Expense = require('../models/Expense.model');
 const Group = require('../models/Group.model');
 const GroupMember = require('../models/GroupMember.model');
+const Payment = require('../models/Payment.model');
 const Settlement = require('../models/Settlement.model');
 const { simplifyDebts } = require('../utils/debtSimplification');
 
@@ -12,14 +13,18 @@ const round2 = (n) => Math.round(n * 100) / 100;
  * Recomputes the entire financial state of a group from its expenses, inside the
  * given transaction session:
  *   1. Net balance per active member (paid − fair share).
- *   2. Group totals (totalExpenses, avgPerPerson).
- *   3. The simplified settlement graph (shortest set of transfers).
+ *   2. Confirmed payments applied on top, so already-settled debts stay settled
+ *      across recalculations.
+ *   3. Group totals (totalExpenses, avgPerPerson).
+ *   4. The simplified settlement graph (shortest set of transfers) for whatever
+ *      debt remains. Settled settlement records are preserved as immutable history.
  * Balances and settlements are persisted so reads stay cheap.
  */
 const recalculateGroup = async (groupId, session) => {
-  const [expenses, members] = await Promise.all([
+  const [expenses, members, payments] = await Promise.all([
     Expense.find({ groupId }).session(session).lean(),
     GroupMember.find({ groupId, status: 'Active' }).session(session).lean(),
+    Payment.find({ groupId, isConfirmed: true }).session(session).lean(),
   ]);
 
   const balances = new Map(members.map((m) => [String(m.userId), 0]));
@@ -47,6 +52,17 @@ const recalculateGroup = async (groupId, session) => {
     }
   }
 
+  // Apply confirmed payments: a payment (from → to) means the debtor already paid
+  // the creditor, so it shrinks both sides toward zero. Only adjust when both
+  // parties are still active members so the active-member graph stays balanced.
+  for (const p of payments) {
+    const from = String(p.fromUserId);
+    const to = String(p.toUserId);
+    if (!balances.has(from) || !balances.has(to)) continue;
+    balances.set(from, balances.get(from) + p.amount);
+    balances.set(to, balances.get(to) - p.amount);
+  }
+
   const memberCount = members.length;
   const avgPerPerson = memberCount > 0 ? totalExpenses / memberCount : 0;
 
@@ -72,7 +88,9 @@ const recalculateGroup = async (groupId, session) => {
   }));
   const settlements = simplifyDebts(balanceList);
 
-  await Settlement.deleteMany({ groupId }, { session });
+  // Only the open (recomputable) edges are replaced; settled settlements are
+  // immutable history and must survive recalculation.
+  await Settlement.deleteMany({ groupId, isSettled: false }, { session });
   if (settlements.length > 0) {
     await Settlement.insertMany(
       settlements.map((s) => ({
