@@ -1,8 +1,9 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 
+import { Dashboard } from '../../core/models/dashboard.model';
 import { GroupSummary } from '../../core/models/group.model';
 import { AuthService } from '../../core/services/auth.service';
-import { GroupService } from '../../core/services/group.service';
+import { DashboardService } from '../../core/services/dashboard.service';
 import { CreateGroupComponent } from '../groups/create-group/create-group.component';
 
 @Component({
@@ -13,15 +14,16 @@ import { CreateGroupComponent } from '../groups/create-group/create-group.compon
 })
 export class DashboardComponent implements OnInit {
   protected readonly auth = inject(AuthService);
-  private readonly groupService = inject(GroupService);
+  private readonly dashboardService = inject(DashboardService);
 
+  protected readonly dashboard = signal<Dashboard | null>(null);
   protected readonly groups = signal<GroupSummary[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly showCreateGroup = signal(false);
 
   ngOnInit(): void {
-    this.loadGroups();
+    this.loadDashboard();
   }
 
   protected openCreateGroup(): void {
@@ -34,21 +36,23 @@ export class DashboardComponent implements OnInit {
 
   protected onGroupCreated(): void {
     this.showCreateGroup.set(false);
-    this.loadGroups();
+    this.loadDashboard();
   }
 
-  protected loadGroups(): void {
+  protected loadDashboard(): void {
     this.loading.set(true);
     this.error.set(null);
 
-    this.groupService.getDashboardGroups().subscribe({
+    this.dashboardService.getDashboard().subscribe({
       next: (response) => {
-        this.groups.set(response.data ?? []);
+        this.dashboard.set(response.data ?? null);
+        this.groups.set(response.data?.groups ?? []);
         this.loading.set(false);
       },
       error: () => {
+        this.dashboard.set(null);
         this.groups.set([]);
-        this.error.set('Could not load your groups. Please try again.');
+        this.error.set('Could not load your dashboard. Please try again.');
         this.loading.set(false);
       },
     });

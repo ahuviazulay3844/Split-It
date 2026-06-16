@@ -1,4 +1,4 @@
-const { createGroup, getUserActiveGroups } = require('../services/group.service');
+const { createGroup } = require('../services/group.service');
 
 const create = async (req, res, next) => {
   try {
@@ -10,13 +10,4 @@ const create = async (req, res, next) => {
   }
 };
 
-const getMyGroups = async (req, res, next) => {
-  try {
-    const groups = await getUserActiveGroups(req.user._id);
-    res.json({ status: 'success', data: groups });
-  } catch (err) {
-    next(err);
-  }
-};
-
-module.exports = { create, getMyGroups };
+module.exports = { create };

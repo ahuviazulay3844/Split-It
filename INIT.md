@@ -23,7 +23,7 @@ The server listens on `http://localhost:3000` and exposes:
 - `POST /api/auth/login`
 - `GET /api/users/search`
 - `POST /api/groups`
-- `GET /api/groups/dashboard`
+- `GET /api/dashboard`
 - `POST /api/expenses`
 - `GET /api/groups/:groupId/balance`
 - `GET /api/groups/:groupId/overview`
