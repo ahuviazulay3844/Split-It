@@ -19,6 +19,9 @@ const generateGroupCode = async () => {
   return code;
 };
 
+// Escapes user input before it is used inside a RegExp, preventing ReDoS / injection.
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /**
  * Creates a group atomically:
  *  1. Creates the Group document.
@@ -34,6 +37,27 @@ const createGroup = async (adminId, groupName, memberIds = []) => {
         .filter((id) => id !== adminId.toString())
     ),
   ];
+
+  // --- Business rules enforced BEFORE opening the transaction ---
+
+  // A group must have at least 2 members (the admin + at least one other).
+  if (uniqueMemberIds.length < 1) {
+    const err = new Error('A group must have at least 2 members');
+    err.status = 400;
+    throw err;
+  }
+
+  // Group names are unique per owner (case-insensitive) among active groups.
+  const duplicate = await Group.exists({
+    adminId,
+    groupName: new RegExp(`^${escapeRegex(groupName)}$`, 'i'),
+    isActive: true,
+  });
+  if (duplicate) {
+    const err = new Error('You already have a group with this name');
+    err.status = 409;
+    throw err;
+  }
 
   const groupCode = await generateGroupCode();
 

@@ -12,4 +12,10 @@ const groupSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// A user cannot own two groups with the same name (case-insensitive).
+groupSchema.index(
+  { adminId: 1, groupName: 1 },
+  { unique: true, collation: { locale: 'en', strength: 2 } }
+);
+
 module.exports = mongoose.model('Group', groupSchema, 'Group');

@@ -10,7 +10,7 @@ const createGroupSchema = z.object({
     .max(100, 'Group name must be at most 100 characters'),
   memberIds: z
     .array(z.string().regex(objectIdRegex, 'Invalid user ID format'))
-    .default([]),
+    .min(1, 'A group must include at least one other member'),
 });
 
 module.exports = { createGroupSchema };

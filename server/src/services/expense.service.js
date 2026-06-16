@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+const Category = require('../models/Category.model');
 const Expense = require('../models/Expense.model');
 const Group = require('../models/Group.model');
 const GroupMember = require('../models/GroupMember.model');
@@ -8,6 +9,33 @@ const Settlement = require('../models/Settlement.model');
 const { simplifyDebts } = require('../utils/debtSimplification');
 
 const round2 = (n) => Math.round(n * 100) / 100;
+
+/**
+ * Resolves the category for an expense inside the active transaction:
+ *  - If a categoryId is supplied, verifies it exists (400 otherwise).
+ *  - If omitted, finds-or-creates the configurable default category so every
+ *    expense always carries a category. Uses an upsert to stay atomic and
+ *    collision-safe under the unique name index.
+ */
+const resolveCategoryId = async (categoryId, session) => {
+  if (categoryId) {
+    const exists = await Category.exists({ _id: categoryId }).session(session);
+    if (!exists) {
+      const err = new Error('Category not found');
+      err.status = 400;
+      throw err;
+    }
+    return categoryId;
+  }
+
+  const defaultName = process.env.DEFAULT_CATEGORY_NAME || 'General';
+  const category = await Category.findOneAndUpdate(
+    { name: defaultName },
+    { $setOnInsert: { name: defaultName } },
+    { new: true, upsert: true, session, collation: { locale: 'en', strength: 2 } }
+  );
+  return category._id;
+};
 
 /**
  * Recomputes the entire financial state of a group from its expenses, inside the
@@ -177,6 +205,8 @@ const addExpense = async (
     }
     // --- סוף השינוי ---
 
+    const resolvedCategoryId = await resolveCategoryId(categoryId, session);
+
     const [expense] = await Expense.create(
       [
         {
@@ -184,7 +214,7 @@ const addExpense = async (
           payerId: payer,
           amount,
           description,
-          categoryId,
+          categoryId: resolvedCategoryId,
           splitType,
           participants,
           splits: expenseSplits,
