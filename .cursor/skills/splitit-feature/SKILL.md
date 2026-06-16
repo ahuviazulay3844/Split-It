@@ -25,11 +25,11 @@ Route → (auth) → (validate) → Controller → Service → Model
 
 | Layer | Path | Naming |
 |-------|------|--------|
-| Model | `src/models/` | `Thing.model.js`, exports `mongoose.model('Thing', schema, 'Thing')` |
-| Validator | `src/validators/` | `thing.validators.js`, exports named Zod schemas |
-| Service | `src/services/` | `thing.service.js`, exports named async functions |
-| Controller | `src/controllers/` | `thing.controller.js`, thin handlers |
-| Route | `src/routes/` | `thing.routes.js`, then mount in `src/routes/index.js` |
+| Model | `server/src/models/` | `Thing.model.js`, exports `mongoose.model('Thing', schema, 'Thing')` |
+| Validator | `server/src/validators/` | `thing.validators.js`, exports named Zod schemas |
+| Service | `server/src/services/` | `thing.service.js`, exports named async functions |
+| Controller | `server/src/controllers/` | `thing.controller.js`, thin handlers |
+| Route | `server/src/routes/` | `thing.routes.js`, then mount in `server/src/routes/index.js` |
 
 ## Workflow
 
@@ -41,7 +41,7 @@ Copy and track:
 - [ ] 3. Service: business logic, transactions, safe field selection
 - [ ] 4. Controller: thin handler delegating to service
 - [ ] 5. Route: wire authMiddleware + validate + controller
-- [ ] 6. Mount route in src/routes/index.js under /api/<resource>
+- [ ] 6. Mount route in server/src/routes/index.js under /api/<resource>
 - [ ] 7. ReadLints on edited files
 ```
 
@@ -114,9 +114,9 @@ module.exports = router;
 
 ## Existing infrastructure to reuse (do not recreate)
 
-- `src/middleware/auth.middleware.js` — verifies `Authorization: Bearer <token>`, sets `req.user`.
-- `src/middleware/validate.middleware.js` — `validate(schema)`, populates `req.validatedBody`.
-- `src/middleware/errorHandler.js` — centralized handler, must stay registered LAST in `app.js`.
+- `server/src/middleware/auth.middleware.js` — verifies `Authorization: Bearer <token>`, sets `req.user`.
+- `server/src/middleware/validate.middleware.js` — `validate(schema)`, populates `req.validatedBody`.
+- `server/src/middleware/errorHandler.js` — centralized handler, must stay registered LAST in `server/src/app.js`.
 
 ## Conventions
 
