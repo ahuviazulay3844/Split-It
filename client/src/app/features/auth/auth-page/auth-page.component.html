@@ -1,0 +1,45 @@
+<div
+  class="min-h-screen flex items-center justify-center px-4 py-12 bg-[#0f1419]"
+  style="background: radial-gradient(circle at 20% 20%, rgba(212, 175, 55, 0.08), transparent 40%), radial-gradient(circle at 80% 0%, rgba(148, 163, 184, 0.12), transparent 35%), linear-gradient(160deg, #0f1419 0%, #1a1f2e 50%, #12151c 100%)"
+>
+  <div class="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-8 shadow-2xl">
+    <header class="mb-8 text-center">
+      <p class="text-xs font-medium tracking-[0.35em] uppercase text-amber-200/80 mb-3">SplitIt</p>
+      <h1 class="text-2xl font-light text-white tracking-tight mb-2">Shared expenses, simplified.</h1>
+      <p class="text-sm font-light text-slate-400 leading-relaxed">
+        Sign in or create an account to manage your groups.
+      </p>
+    </header>
+
+    <nav class="flex gap-1 mb-8 border-b border-white/10" aria-label="Authentication">
+      <button
+        type="button"
+        class="flex-1 pb-3 text-sm font-light tracking-wide bg-transparent border-0 cursor-pointer transition-colors border-b -mb-px"
+        [class.text-white]="activeTab() === 'login'"
+        [class.text-slate-500]="activeTab() !== 'login'"
+        [class.border-amber-400/60]="activeTab() === 'login'"
+        [class.border-transparent]="activeTab() !== 'login'"
+        (click)="selectTab('login')"
+      >
+        Sign in
+      </button>
+      <button
+        type="button"
+        class="flex-1 pb-3 text-sm font-light tracking-wide bg-transparent border-0 cursor-pointer transition-colors border-b -mb-px"
+        [class.text-white]="activeTab() === 'register'"
+        [class.text-slate-500]="activeTab() !== 'register'"
+        [class.border-amber-400/60]="activeTab() === 'register'"
+        [class.border-transparent]="activeTab() !== 'register'"
+        (click)="selectTab('register')"
+      >
+        Register
+      </button>
+    </nav>
+
+    @if (activeTab() === 'login') {
+      <app-login-form (loggedIn)="onAuthenticated()" />
+    } @else {
+      <app-register-form (registered)="onAuthenticated()" />
+    }
+  </div>
+</div>

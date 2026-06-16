@@ -1,6 +1,6 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 
-const TOKEN_STORAGE_KEY = 'splitit_token';
+import { TOKEN_STORAGE_KEY } from '../constants/auth.constants';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const token = localStorage.getItem(TOKEN_STORAGE_KEY);
