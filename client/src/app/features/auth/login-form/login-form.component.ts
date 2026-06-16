@@ -51,7 +51,7 @@ export class LoginFormComponent {
           return;
         }
 
-        this.errorMessage = err.error?.message ?? 'Invalid email or password';
+        this.errorMessage = 'כתובת הדוא"ל או הסיסמה שגויות';
       },
     });
   }
@@ -63,11 +63,11 @@ export class LoginFormComponent {
     }
 
     if (control.errors['required']) {
-      return field === 'email' ? 'Email is required' : 'Password is required';
+      return field === 'email' ? 'יש להזין כתובת דוא"ל' : 'יש להזין סיסמה';
     }
 
     if (control.errors['email']) {
-      return 'Invalid email address';
+      return 'כתובת הדוא"ל אינה תקינה';
     }
 
     return null;

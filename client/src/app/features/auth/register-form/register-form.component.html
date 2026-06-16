@@ -9,14 +9,14 @@
         for="register-firstName"
         class="text-xs font-medium tracking-wide text-slate-400 uppercase"
       >
-        First name
+        שם פרטי
       </label>
       <input
         id="register-firstName"
         type="text"
         formControlName="firstName"
         autocomplete="given-name"
-        placeholder="Jane"
+        placeholder="שם פרטי"
         class="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-light text-white placeholder:text-slate-600 outline-none transition-colors focus:border-amber-400/40 focus:bg-white/[0.07]"
       />
       @if (fieldError('firstName')) {
@@ -29,14 +29,14 @@
         for="register-familyName"
         class="text-xs font-medium tracking-wide text-slate-400 uppercase"
       >
-        Family name
+        שם משפחה
       </label>
       <input
         id="register-familyName"
         type="text"
         formControlName="familyName"
         autocomplete="family-name"
-        placeholder="Doe"
+        placeholder="שם משפחה"
         class="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-light text-white placeholder:text-slate-600 outline-none transition-colors focus:border-amber-400/40 focus:bg-white/[0.07]"
       />
       @if (fieldError('familyName')) {
@@ -47,14 +47,14 @@
 
   <div class="flex flex-col gap-1.5">
     <label for="register-email" class="text-xs font-medium tracking-wide text-slate-400 uppercase">
-      Email
+      דוא"ל
     </label>
     <input
       id="register-email"
       type="email"
       formControlName="email"
       autocomplete="email"
-      placeholder="you@example.com"
+      placeholder="כתובת דוא״ל"
       class="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-light text-white placeholder:text-slate-600 outline-none transition-colors focus:border-amber-400/40 focus:bg-white/[0.07]"
     />
     @if (fieldError('email')) {
@@ -67,14 +67,14 @@
       for="register-password"
       class="text-xs font-medium tracking-wide text-slate-400 uppercase"
     >
-      Password
+      סיסמה
     </label>
     <input
       id="register-password"
       type="password"
       formControlName="password"
       autocomplete="new-password"
-      placeholder="At least 8 characters"
+      placeholder="לפחות 8 תווים"
       class="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-light text-white placeholder:text-slate-600 outline-none transition-colors focus:border-amber-400/40 focus:bg-white/[0.07]"
     />
     @if (fieldError('password')) {
@@ -84,7 +84,7 @@
 
   <div class="flex flex-col gap-1.5">
     <label for="register-phone" class="text-xs font-medium tracking-wide text-slate-400 uppercase">
-      Phone <span class="font-light opacity-60 normal-case">(optional)</span>
+      טלפון <span class="font-light opacity-60 normal-case">(אופציונלי)</span>
     </label>
     <input
       id="register-phone"
@@ -107,6 +107,6 @@
     class="mt-2 w-full rounded-lg border border-amber-400/30 bg-amber-400/10 py-2.5 text-sm font-medium tracking-wide text-amber-100 cursor-pointer transition-all hover:bg-amber-400/20 hover:border-amber-400/50 disabled:opacity-50 disabled:cursor-not-allowed"
     [disabled]="loadingState"
   >
-    {{ loadingState ? 'Creating account…' : 'Create account' }}
+    {{ loadingState ? 'יוצרים חשבון…' : 'יצירת חשבון' }}
   </button>
 </form>

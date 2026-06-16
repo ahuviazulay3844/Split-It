@@ -6,32 +6,32 @@ import { HealthService } from '../../core/services/health.service';
 @Component({
   selector: 'app-health-check',
   template: `
-    <main class="page">
+    <main class="page" dir="rtl">
       <section class="hero">
         <p class="eyebrow">SplitIt</p>
-        <h1>Client and server are ready to talk.</h1>
+        <h1>הקליינט והשרת מוכנים לתקשר.</h1>
         <p>
-          This Angular client calls the Express <code>/health</code> endpoint through the local
-          proxy. A successful response confirms the connection.
+          קליינט Angular קורא לנקודת הקצה <code>/health</code> של Express דרך הפרוקסי המקומי.
+          תשובה מוצלחת מאשרת שהחיבור תקין.
         </p>
       </section>
 
       <section class="status-card" [class.ok]="health()?.status === 'ok'" [class.error]="error()">
         <div>
-          <p class="label">API connection</p>
+          <p class="label">חיבור ל-API</p>
           @if (loading()) {
-            <h2>Checking...</h2>
+            <h2>בודקים...</h2>
           } @else if (health()) {
-            <h2>Connected</h2>
-            <p>Server status: {{ health()?.status }}</p>
-            <p>Timestamp: {{ health()?.timestamp }}</p>
+            <h2>מחובר</h2>
+            <p>סטטוס שרת: {{ health()?.status }}</p>
+            <p>זמן בדיקה: {{ health()?.timestamp }}</p>
           } @else {
-            <h2>Not connected</h2>
+            <h2>אין חיבור</h2>
             <p>{{ error() }}</p>
           }
         </div>
 
-        <button type="button" (click)="checkHealth()">Check again</button>
+        <button type="button" (click)="checkHealth()">בדיקה חוזרת</button>
       </section>
     </main>
   `,
@@ -59,7 +59,7 @@ export class HealthCheckComponent {
       },
       error: () => {
         this.health.set(null);
-        this.error.set('Could not reach the server. Make sure the Express server is running.');
+        this.error.set('לא ניתן להגיע לשרת. ודאו ששרת Express פועל.');
         this.loading.set(false);
       },
     });

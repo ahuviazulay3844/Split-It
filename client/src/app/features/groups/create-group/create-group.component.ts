@@ -84,7 +84,7 @@ export class CreateGroupComponent {
     // A group must have at least 2 people (you + one other). This mirrors the
     // rule the server enforces, so we block an invalid request up front.
     if (this.selectedMembers().length < 1) {
-      this.errorMessage = 'A group needs at least one other member (you make two).';
+      this.errorMessage = 'כדי ליצור קבוצה צריך להוסיף לפחות חבר/ה אחד/ת נוסף/ת.';
       return;
     }
 
@@ -101,7 +101,15 @@ export class CreateGroupComponent {
       },
       error: (err) => {
         this.loadingState = false;
-        this.errorMessage = err.error?.message ?? 'Failed to create group. Please try again.';
+        if (err.status === 409) {
+          this.errorMessage = 'כבר קיימת אצלך קבוצה פעילה בשם הזה.';
+          return;
+        }
+        if (err.status === 400) {
+          this.errorMessage = 'יש לבדוק את פרטי הקבוצה והחברים שנבחרו.';
+          return;
+        }
+        this.errorMessage = 'יצירת הקבוצה נכשלה. נסו שוב.';
       },
     });
   }
@@ -113,15 +121,15 @@ export class CreateGroupComponent {
     }
 
     if (control.errors['required']) {
-      return 'Group name is required';
+      return 'יש להזין שם קבוצה';
     }
 
     if (control.errors['minlength']) {
-      return `Group name must be at least ${control.errors['minlength'].requiredLength} characters`;
+      return `שם הקבוצה חייב להכיל לפחות ${control.errors['minlength'].requiredLength} תווים`;
     }
 
     if (control.errors['maxlength']) {
-      return `Group name must be at most ${control.errors['maxlength'].requiredLength} characters`;
+      return `שם הקבוצה יכול להכיל עד ${control.errors['maxlength'].requiredLength} תווים`;
     }
 
     return null;
