@@ -53,7 +53,7 @@ export class DashboardComponent implements OnInit {
       error: () => {
         this.dashboard.set(null);
         this.groups.set([]);
-        this.error.set('Could not load your dashboard. Please try again.');
+        this.error.set('לא ניתן לטעון את לוח הבקרה. נסו שוב.');
         this.loading.set(false);
       },
     });
@@ -79,11 +79,15 @@ export class DashboardComponent implements OnInit {
 
   protected balanceLabel(value: number): string {
     if (value > 0) {
-      return 'you are owed';
+      return 'חייבים לך';
     }
     if (value < 0) {
-      return 'you owe';
+      return 'החוב שלך';
     }
-    return 'settled up';
+    return 'מאוזן';
+  }
+
+  protected roleLabel(group: GroupSummary): string {
+    return group.roleInGroup === 'Admin' ? 'מנהל/ת' : 'חבר/ה';
   }
 }

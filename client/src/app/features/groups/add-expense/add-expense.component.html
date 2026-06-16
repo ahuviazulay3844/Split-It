@@ -1,4 +1,5 @@
 <div
+  dir="rtl"
   class="fixed inset-0 z-50 flex items-center justify-center px-4 py-8 bg-black/60 backdrop-blur-sm overflow-y-auto"
   (click)="close()"
 >
@@ -8,16 +9,16 @@
   >
     <header class="flex items-start justify-between gap-4 mb-6">
       <div>
-        <h2 class="text-lg font-light text-white tracking-tight">Add expense</h2>
+        <h2 class="text-lg font-light text-white tracking-tight">הוספת הוצאה</h2>
         <p class="text-xs font-light text-slate-400 mt-1">
-          Choose who shares it — not everyone has to.
+          בחרו מי משתתף בהוצאה — לא כולם חייבים להשתתף.
         </p>
       </div>
       <button
         type="button"
         class="text-slate-400 hover:text-white bg-transparent border-0 cursor-pointer text-xl leading-none"
         (click)="close()"
-        aria-label="Close"
+        aria-label="סגירה"
       >
         ×
       </button>
@@ -26,13 +27,13 @@
     <form class="flex flex-col gap-5" [formGroup]="form" (ngSubmit)="submit()">
       <div class="flex flex-col gap-1.5">
         <label for="expense-desc" class="text-xs font-medium tracking-wide text-slate-400 uppercase">
-          Description
+          תיאור
         </label>
         <input
           id="expense-desc"
           type="text"
           formControlName="description"
-          placeholder="e.g. Dinner, taxi, groceries"
+          placeholder="למשל: ארוחת ערב, מונית, קניות"
           class="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-light text-white placeholder:text-slate-600 outline-none transition-colors focus:border-amber-400/40 focus:bg-white/[0.07]"
         />
         @if (descriptionError()) {
@@ -43,7 +44,7 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="flex flex-col gap-1.5">
           <label for="expense-amount" class="text-xs font-medium tracking-wide text-slate-400 uppercase">
-            Amount (₪)
+            סכום (₪)
           </label>
           <input
             id="expense-amount"
@@ -62,14 +63,14 @@
 
         <div class="flex flex-col gap-1.5">
           <label for="expense-category" class="text-xs font-medium tracking-wide text-slate-400 uppercase">
-            Category
+            קטגוריה
           </label>
           <select
             id="expense-category"
             formControlName="categoryId"
             class="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-light text-white outline-none transition-colors focus:border-amber-400/40 focus:bg-white/[0.07]"
           >
-            <option class="bg-[#1a1f2e]" value="">General (default)</option>
+            <option class="bg-[#1a1f2e]" value="">כללי (ברירת מחדל)</option>
             @for (category of categories(); track category._id) {
               <option class="bg-[#1a1f2e]" [value]="category._id">{{ category.name }}</option>
             }
@@ -79,7 +80,7 @@
 
       <div class="flex flex-col gap-1.5">
         <label for="expense-payer" class="text-xs font-medium tracking-wide text-slate-400 uppercase">
-          Paid by
+          שולם על ידי
         </label>
         <select
           id="expense-payer"
@@ -88,7 +89,7 @@
         >
           @for (member of members(); track member.user._id) {
             <option class="bg-[#1a1f2e]" [value]="member.user._id">
-              {{ memberName(member) }}{{ member.user._id === currentUserId() ? ' (you)' : '' }}
+              {{ memberName(member) }}{{ member.user._id === currentUserId() ? ' (את/ה)' : '' }}
             </option>
           }
         </select>
@@ -97,14 +98,14 @@
       <div class="flex flex-col gap-2">
         <div class="flex items-center justify-between">
           <span class="text-xs font-medium tracking-wide text-slate-400 uppercase">
-            Shared by ({{ selectedParticipants().size }}/{{ members().length }})
+            משתתפים בהוצאה ({{ selectedParticipants().size }}/{{ members().length }})
           </span>
           <button
             type="button"
             class="text-xs font-light text-amber-200/80 hover:text-amber-100 bg-transparent border-0 cursor-pointer"
             (click)="toggleAll()"
           >
-            {{ allSelected ? 'Clear all' : 'Select all' }}
+            {{ allSelected ? 'ניקוי הכול' : 'בחירת הכול' }}
           </button>
         </div>
 
@@ -142,7 +143,7 @@
         class="w-full rounded-lg border border-amber-400/30 bg-amber-400/10 py-2.5 text-sm font-medium tracking-wide text-amber-100 cursor-pointer transition-all hover:bg-amber-400/20 hover:border-amber-400/50 disabled:opacity-50 disabled:cursor-not-allowed"
         [disabled]="loadingState"
       >
-        {{ loadingState ? 'Adding…' : 'Add expense' }}
+        {{ loadingState ? 'מוסיפים…' : 'הוספת הוצאה' }}
       </button>
     </form>
   </div>

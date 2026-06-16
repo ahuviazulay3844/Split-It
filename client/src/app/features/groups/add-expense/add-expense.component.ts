@@ -108,19 +108,19 @@ export class AddExpenseComponent implements OnInit {
       return null;
     }
     if (errors['required']) {
-      return 'Amount is required';
+      return 'יש להזין סכום';
     }
     if (errors['money']) {
-      return 'Amount must be a valid number';
+      return 'הסכום חייב להיות מספר תקין';
     }
     if (errors['positive']) {
-      return 'Amount must be greater than 0';
+      return 'הסכום חייב להיות גדול מ-0';
     }
     if (errors['decimals']) {
-      return 'Use at most 2 decimal places';
+      return 'ניתן להשתמש בעד שתי ספרות אחרי הנקודה';
     }
     if (errors['max']) {
-      return 'Amount is too large';
+      return 'הסכום גבוה מדי';
     }
     return null;
   }
@@ -131,7 +131,7 @@ export class AddExpenseComponent implements OnInit {
       return null;
     }
     if (control.errors['maxlength']) {
-      return 'Description must be at most 200 characters';
+      return 'התיאור יכול להכיל עד 200 תווים';
     }
     return null;
   }
@@ -140,7 +140,7 @@ export class AddExpenseComponent implements OnInit {
     if (!this.submitted()) {
       return null;
     }
-    return this.selectedParticipants().size === 0 ? 'Select at least one participant' : null;
+    return this.selectedParticipants().size === 0 ? 'יש לבחור לפחות משתתף/ת אחד/ת' : null;
   }
 
   protected submit(): void {
@@ -179,7 +179,15 @@ export class AddExpenseComponent implements OnInit {
       },
       error: (err) => {
         this.loadingState = false;
-        this.errorMessage = err.error?.message ?? 'Failed to add expense. Please try again.';
+        if (err.status === 400) {
+          this.errorMessage = 'יש לבדוק את פרטי ההוצאה והמשתתפים שנבחרו.';
+          return;
+        }
+        if (err.status === 403) {
+          this.errorMessage = 'אין לך הרשאה להוסיף הוצאה בקבוצה הזו.';
+          return;
+        }
+        this.errorMessage = 'הוספת ההוצאה נכשלה. נסו שוב.';
       },
     });
   }

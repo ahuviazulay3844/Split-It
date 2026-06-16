@@ -1,17 +1,18 @@
 <div
+  dir="rtl"
   class="min-h-screen flex items-center justify-center px-4 py-12 bg-[#0f1419]"
   style="background: radial-gradient(circle at 20% 20%, rgba(212, 175, 55, 0.08), transparent 40%), radial-gradient(circle at 80% 0%, rgba(148, 163, 184, 0.12), transparent 35%), linear-gradient(160deg, #0f1419 0%, #1a1f2e 50%, #12151c 100%)"
 >
   <div class="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-8 shadow-2xl">
     <header class="mb-8 text-center">
       <p class="text-xs font-medium tracking-[0.35em] uppercase text-amber-200/80 mb-3">SplitIt</p>
-      <h1 class="text-2xl font-light text-white tracking-tight mb-2">Shared expenses, simplified.</h1>
+      <h1 class="text-2xl font-light text-white tracking-tight mb-2">SPLIT IT</h1>
       <p class="text-sm font-light text-slate-400 leading-relaxed">
-        Sign in or create an account to manage your groups.
+        התחברו או צרו חשבון כדי לנהל את הקבוצות שלכם.
       </p>
     </header>
 
-    <nav class="flex gap-1 mb-8 border-b border-white/10" aria-label="Authentication">
+    <nav class="flex gap-1 mb-8 border-b border-white/10" aria-label="אימות משתמש">
       <button
         type="button"
         class="flex-1 pb-3 text-sm font-light tracking-wide bg-transparent border-0 cursor-pointer transition-colors border-b -mb-px"
@@ -21,7 +22,7 @@
         [class.border-transparent]="activeTab() !== 'login'"
         (click)="selectTab('login')"
       >
-        Sign in
+        התחברות
       </button>
       <button
         type="button"
@@ -32,7 +33,7 @@
         [class.border-transparent]="activeTab() !== 'register'"
         (click)="selectTab('register')"
       >
-        Register
+        הרשמה
       </button>
     </nav>
 
@@ -44,7 +45,7 @@
     } @else {
       @if (registerEmail()) {
         <p class="text-sm font-light text-amber-200/80 mb-4 text-center">
-          No account found for this email. Complete registration below.
+          לא נמצא חשבון עבור כתובת הדוא"ל הזו. השלימו את ההרשמה כאן.
         </p>
       }
       <app-register-form

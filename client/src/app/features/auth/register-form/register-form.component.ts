@@ -62,7 +62,8 @@ export class RegisterFormComponent {
       },
       error: (err) => {
         this.loadingState = false;
-        this.errorMessage = err.error?.message ?? 'Registration failed. Please try again.';
+        this.errorMessage =
+          err.status === 409 ? 'כתובת הדוא"ל כבר רשומה במערכת.' : 'ההרשמה נכשלה. נסו שוב.';
       },
     });
   }
@@ -77,32 +78,32 @@ export class RegisterFormComponent {
 
     if (control.errors['required']) {
       const labels: Record<string, string> = {
-        firstName: 'First name is required',
-        familyName: 'Family name is required',
-        email: 'Email is required',
-        password: 'Password is required',
+        firstName: 'יש להזין שם פרטי',
+        familyName: 'יש להזין שם משפחה',
+        email: 'יש להזין כתובת דוא"ל',
+        password: 'יש להזין סיסמה',
       };
-      return labels[field] ?? 'This field is required';
+      return labels[field] ?? 'יש למלא את השדה הזה';
     }
 
     if (control.errors['minlength']) {
       const min = control.errors['minlength'].requiredLength;
       if (field === 'password') {
-        return `Password must be at least ${min} characters`;
+        return `הסיסמה חייבת להכיל לפחות ${min} תווים`;
       }
-      return `${field === 'firstName' ? 'First name' : 'Family name'} must be at least ${min} characters`;
+      return `${field === 'firstName' ? 'שם פרטי' : 'שם משפחה'} חייב להכיל לפחות ${min} תווים`;
     }
 
     if (control.errors['maxlength']) {
       const max = control.errors['maxlength'].requiredLength;
       if (field === 'password') {
-        return `Password must be at most ${max} characters`;
+        return `הסיסמה יכולה להכיל עד ${max} תווים`;
       }
-      return `${field === 'firstName' ? 'First name' : 'Family name'} must be at most ${max} characters`;
+      return `${field === 'firstName' ? 'שם פרטי' : 'שם משפחה'} יכול להכיל עד ${max} תווים`;
     }
 
     if (control.errors['email']) {
-      return 'Invalid email address';
+      return 'כתובת הדוא"ל אינה תקינה';
     }
 
     return null;

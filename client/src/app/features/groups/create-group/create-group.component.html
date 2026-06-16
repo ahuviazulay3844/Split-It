@@ -1,4 +1,5 @@
 <div
+  dir="rtl"
   class="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm"
   (click)="close()"
 >
@@ -8,14 +9,14 @@
   >
     <header class="flex items-start justify-between gap-4 mb-6">
       <div>
-        <h2 class="text-lg font-light text-white tracking-tight">New group</h2>
-        <p class="text-xs font-light text-slate-400 mt-1">You will be the group administrator.</p>
+        <h2 class="text-lg font-light text-white tracking-tight">קבוצה חדשה</h2>
+        <p class="text-xs font-light text-slate-400 mt-1">את/ה תהיה/י מנהל/ת הקבוצה.</p>
       </div>
       <button
         type="button"
         class="text-slate-400 hover:text-white bg-transparent border-0 cursor-pointer text-xl leading-none"
         (click)="close()"
-        aria-label="Close"
+        aria-label="סגירה"
       >
         ×
       </button>
@@ -24,13 +25,13 @@
     <form class="flex flex-col gap-5" [formGroup]="form" (ngSubmit)="submit()">
       <div class="flex flex-col gap-1.5">
         <label for="group-name" class="text-xs font-medium tracking-wide text-slate-400 uppercase">
-          Group name
+          שם הקבוצה
         </label>
         <input
           id="group-name"
           type="text"
           formControlName="groupName"
-          placeholder="e.g. Roommates"
+          placeholder="למשל: שותפים לדירה"
           class="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-light text-white placeholder:text-slate-600 outline-none transition-colors focus:border-amber-400/40 focus:bg-white/[0.07]"
         />
         @if (groupNameError()) {
@@ -43,18 +44,18 @@
           for="member-search"
           class="text-xs font-medium tracking-wide text-slate-400 uppercase"
         >
-          Add members <span class="text-amber-200/70 normal-case font-light">(at least one)</span>
+          הוספת חברים <span class="text-amber-200/70 normal-case font-light">(לפחות אחד)</span>
         </label>
         <input
           id="member-search"
           type="search"
           formControlName="memberSearch"
-          placeholder="Search by name or email (min. 2 characters)"
+          placeholder="חיפוש לפי שם או דוא״ל (לפחות 2 תווים)"
           class="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-light text-white placeholder:text-slate-600 outline-none transition-colors focus:border-amber-400/40 focus:bg-white/[0.07]"
         />
 
         @if (searching()) {
-          <p class="text-xs font-light text-slate-500">Searching…</p>
+          <p class="text-xs font-light text-slate-500">מחפשים…</p>
         }
 
         @if (searchResults().length > 0) {
@@ -86,7 +87,7 @@
                 type="button"
                 class="text-slate-500 hover:text-white bg-transparent border-0 cursor-pointer leading-none"
                 (click)="removeMember(member._id)"
-                aria-label="Remove member"
+                aria-label="הסרת חבר/ה"
               >
                 ×
               </button>
@@ -106,7 +107,7 @@
         class="w-full rounded-lg border border-amber-400/30 bg-amber-400/10 py-2.5 text-sm font-medium tracking-wide text-amber-100 cursor-pointer transition-all hover:bg-amber-400/20 hover:border-amber-400/50 disabled:opacity-50 disabled:cursor-not-allowed"
         [disabled]="loadingState || selectedMembers().length < 1"
       >
-        {{ loadingState ? 'Creating…' : 'Create group' }}
+        {{ loadingState ? 'יוצרים…' : 'יצירת קבוצה' }}
       </button>
     </form>
   </div>

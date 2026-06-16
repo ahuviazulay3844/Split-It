@@ -60,7 +60,7 @@ export class GroupPageComponent implements OnInit {
   protected readonly categoryChart = computed<ChartData>(() => {
     const totals = new Map<string, number>();
     for (const exp of this.expenses()) {
-      const name = exp.categoryId?.name ?? 'Uncategorized';
+      const name = exp.categoryId?.name ?? 'ללא קטגוריה';
       totals.set(name, (totals.get(name) ?? 0) + exp.amount);
     }
     return this.toChartData(totals);
@@ -82,7 +82,7 @@ export class GroupPageComponent implements OnInit {
           : exp.participants.map((userId) => ({ userId, share: exp.amount / exp.participants.length }));
 
       for (const { userId, share } of shares) {
-        const name = names.get(userId) ?? 'Former member';
+        const name = names.get(userId) ?? 'חבר/ה לשעבר';
         totals.set(name, (totals.get(name) ?? 0) + share);
       }
     }
@@ -111,7 +111,7 @@ export class GroupPageComponent implements OnInit {
   protected loadAll(): void {
     const id = this.groupId();
     if (!id) {
-      this.error.set('Invalid group.');
+      this.error.set('קבוצה לא תקינה.');
       this.loading.set(false);
       return;
     }
@@ -133,8 +133,8 @@ export class GroupPageComponent implements OnInit {
       error: (err) => {
         this.error.set(
           err.status === 403
-            ? 'You are not a member of this group.'
-            : 'Could not load this group. Please try again.'
+            ? 'אין לך הרשאה לצפות בקבוצה הזו.'
+            : 'לא ניתן לטעון את הקבוצה. נסו שוב.'
         );
         this.loading.set(false);
       },

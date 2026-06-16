@@ -25,7 +25,7 @@ export class PieCardComponent {
   readonly series = input.required<number[]>();
   /** Prefix shown before each value in the tooltip (e.g. a currency symbol). */
   readonly valuePrefix = input('');
-  readonly emptyMessage = input('No data to display yet.');
+  readonly emptyMessage = input('עדיין אין נתונים להצגה.');
 
   protected readonly hasData = computed(
     () => this.series().length > 0 && this.series().some((v) => v > 0)
