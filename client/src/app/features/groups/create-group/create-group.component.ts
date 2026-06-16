@@ -81,6 +81,13 @@ export class CreateGroupComponent {
       return;
     }
 
+    // A group must have at least 2 people (you + one other). This mirrors the
+    // rule the server enforces, so we block an invalid request up front.
+    if (this.selectedMembers().length < 1) {
+      this.errorMessage = 'A group needs at least one other member (you make two).';
+      return;
+    }
+
     this.loadingState = true;
     this.errorMessage = null;
 

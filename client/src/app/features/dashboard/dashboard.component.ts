@@ -1,4 +1,5 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { Dashboard } from '../../core/models/dashboard.model';
 import { GroupSummary } from '../../core/models/group.model';
@@ -8,7 +9,7 @@ import { CreateGroupComponent } from '../groups/create-group/create-group.compon
 
 @Component({
   selector: 'app-dashboard',
-  imports: [CreateGroupComponent],
+  imports: [CreateGroupComponent, RouterLink],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
@@ -64,5 +65,25 @@ export class DashboardComponent implements OnInit {
 
   protected adminName(group: GroupSummary): string {
     return `${group.adminId.firstName} ${group.adminId.familyName}`;
+  }
+
+  protected balanceClass(value: number): string {
+    if (value > 0) {
+      return 'text-emerald-300';
+    }
+    if (value < 0) {
+      return 'text-red-300';
+    }
+    return 'text-slate-400';
+  }
+
+  protected balanceLabel(value: number): string {
+    if (value > 0) {
+      return 'you are owed';
+    }
+    if (value < 0) {
+      return 'you owe';
+    }
+    return 'settled up';
   }
 }

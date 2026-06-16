@@ -1,0 +1,205 @@
+import { Component, inject, input, OnInit, output, signal } from '@angular/core';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+
+import { CategoryRef, CreateExpensePayload, ExpenseSplitInput } from '../../../core/models/expense.model';
+import { GroupMemberView } from '../../../core/models/group.model';
+import { GroupService } from '../../../core/services/group.service';
+
+/** Validates a money amount: a finite, positive number with at most 2 decimals. */
+const moneyValidator = (control: AbstractControl): ValidationErrors | null => {
+  const raw = control.value;
+  if (raw === null || raw === undefined || raw === '') {
+    return null; // `required` handles emptiness.
+  }
+  const value = Number(raw);
+  if (!Number.isFinite(value)) {
+    return { money: true };
+  }
+  if (value <= 0) {
+    return { positive: true };
+  }
+  if (Math.round(value * 100) !== value * 100) {
+    return { decimals: true };
+  }
+  if (value > 1_000_000) {
+    return { max: true };
+  }
+  return null;
+};
+
+@Component({
+  selector: 'app-add-expense',
+  imports: [ReactiveFormsModule],
+  templateUrl: './add-expense.component.html',
+})
+export class AddExpenseComponent implements OnInit {
+  private readonly fb = inject(FormBuilder);
+  private readonly groupService = inject(GroupService);
+
+  readonly groupId = input.required<string>();
+  readonly members = input.required<GroupMemberView[]>();
+  readonly categories = input.required<CategoryRef[]>();
+  readonly currentUserId = input.required<string>();
+
+  readonly closed = output<void>();
+  readonly created = output<void>();
+
+  /** Members who actually share this expense (defaults to everyone). */
+  protected readonly selectedParticipants = signal<Set<string>>(new Set());
+  protected readonly submitted = signal(false);
+  protected errorMessage: string | null = null;
+  protected loadingState = false;
+
+  protected readonly form = this.fb.nonNullable.group({
+    description: ['', [Validators.maxLength(200)]],
+    amount: ['', [Validators.required, moneyValidator]],
+    categoryId: [''],
+    payerId: [''],
+  });
+
+  ngOnInit(): void {
+    this.selectedParticipants.set(new Set(this.members().map((m) => m.user._id)));
+    this.form.controls.payerId.setValue(this.currentUserId());
+  }
+
+  protected isParticipant(userId: string): boolean {
+    return this.selectedParticipants().has(userId);
+  }
+
+  protected toggleParticipant(userId: string): void {
+    this.selectedParticipants.update((set) => {
+      const next = new Set(set);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
+    });
+  }
+
+  protected get allSelected(): boolean {
+    return this.selectedParticipants().size === this.members().length;
+  }
+
+  protected toggleAll(): void {
+    if (this.allSelected) {
+      this.selectedParticipants.set(new Set());
+    } else {
+      this.selectedParticipants.set(new Set(this.members().map((m) => m.user._id)));
+    }
+  }
+
+  protected memberName(member: GroupMemberView): string {
+    return `${member.user.firstName} ${member.user.familyName}`;
+  }
+
+  protected close(): void {
+    this.closed.emit();
+  }
+
+  protected amountError(): string | null {
+    const control = this.form.controls.amount;
+    if (!control.touched && !this.submitted()) {
+      return null;
+    }
+    const errors = control.errors;
+    if (!errors) {
+      return null;
+    }
+    if (errors['required']) {
+      return 'Amount is required';
+    }
+    if (errors['money']) {
+      return 'Amount must be a valid number';
+    }
+    if (errors['positive']) {
+      return 'Amount must be greater than 0';
+    }
+    if (errors['decimals']) {
+      return 'Use at most 2 decimal places';
+    }
+    if (errors['max']) {
+      return 'Amount is too large';
+    }
+    return null;
+  }
+
+  protected descriptionError(): string | null {
+    const control = this.form.controls.description;
+    if ((!control.touched && !this.submitted()) || !control.errors) {
+      return null;
+    }
+    if (control.errors['maxlength']) {
+      return 'Description must be at most 200 characters';
+    }
+    return null;
+  }
+
+  protected participantsError(): string | null {
+    if (!this.submitted()) {
+      return null;
+    }
+    return this.selectedParticipants().size === 0 ? 'Select at least one participant' : null;
+  }
+
+  protected submit(): void {
+    this.submitted.set(true);
+    this.errorMessage = null;
+
+    if (this.form.invalid || this.selectedParticipants().size === 0) {
+      this.form.markAllAsTouched();
+      return;
+    }
+
+    const amount = Number(this.form.controls.amount.value);
+    const description = this.form.controls.description.value.trim();
+    const categoryId = this.form.controls.categoryId.value;
+    const payerId = this.form.controls.payerId.value;
+
+    const payload: CreateExpensePayload = {
+      groupId: this.groupId(),
+      amount,
+      ...(description ? { description } : {}),
+      ...(categoryId ? { categoryId } : {}),
+      ...(payerId ? { payerId } : {}),
+    };
+
+    // Only send custom splits when a strict subset of members shares the expense;
+    // otherwise let the server split equally among all active members.
+    if (!this.allSelected) {
+      payload.splits = this.buildEqualSplits(amount);
+    }
+
+    this.loadingState = true;
+    this.groupService.addExpense(payload).subscribe({
+      next: () => {
+        this.loadingState = false;
+        this.created.emit();
+      },
+      error: (err) => {
+        this.loadingState = false;
+        this.errorMessage = err.error?.message ?? 'Failed to add expense. Please try again.';
+      },
+    });
+  }
+
+  /**
+   * Splits `amount` equally among the selected participants in integer cents so
+   * the shares always add up to the exact total (server enforces this).
+   */
+  private buildEqualSplits(amount: number): ExpenseSplitInput[] {
+    const ids = [...this.selectedParticipants()];
+    const totalCents = Math.round(amount * 100);
+    const base = Math.floor(totalCents / ids.length);
+    let remainder = totalCents - base * ids.length;
+
+    return ids.map((userId) => {
+      const cents = base + (remainder > 0 ? 1 : 0);
+      if (remainder > 0) {
+        remainder -= 1;
+      }
+      return { userId, amount: cents / 100 };
+    });
+  }
+}

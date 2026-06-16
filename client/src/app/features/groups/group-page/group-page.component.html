@@ -1,0 +1,214 @@
+<div class="min-h-screen px-4 sm:px-6 py-8 max-w-6xl mx-auto bg-gradient-to-b from-[#0f1419] to-[#12151c]">
+  <a
+    routerLink="/dashboard"
+    class="inline-flex items-center gap-1.5 text-xs font-light text-slate-400 hover:text-white transition-colors mb-6"
+  >
+    <span aria-hidden="true">←</span> Back to dashboard
+  </a>
+
+  @if (loading()) {
+    <p class="px-6 py-16 text-center text-sm font-light text-slate-500">Loading group…</p>
+  } @else if (error()) {
+    <div class="px-6 py-16 text-center">
+      <p class="text-sm font-light text-red-300/90 mb-4">{{ error() }}</p>
+      <button
+        type="button"
+        class="text-xs font-medium tracking-wide text-slate-400 border border-white/10 rounded-lg px-4 py-2 bg-transparent cursor-pointer hover:text-white hover:border-white/20"
+        (click)="loadAll()"
+      >
+        Retry
+      </button>
+    </div>
+  } @else if (overview(); as ov) {
+    <!-- Header -->
+    <header class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
+      <div>
+        <p class="text-xs font-medium tracking-[0.35em] uppercase text-amber-200/80 mb-2">
+          {{ isAdmin() ? 'Administrator' : 'Member' }}
+        </p>
+        <h1 class="text-2xl font-light text-white tracking-tight">{{ ov.group.groupName }}</h1>
+        <p class="text-sm font-light text-slate-400 mt-1">
+          Code {{ ov.group.groupCode }} · Admin {{ userName(ov.group.admin) }}
+        </p>
+      </div>
+      <button
+        type="button"
+        class="self-start inline-flex items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-2.5 text-sm font-medium tracking-wide text-amber-100 cursor-pointer transition-all hover:bg-amber-400/20 hover:border-amber-400/50"
+        (click)="openAddExpense()"
+      >
+        <span class="text-base leading-none" aria-hidden="true">+</span> Add expense
+      </button>
+    </header>
+
+    <!-- Stat cards -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
+      <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <p class="text-xs font-light text-slate-500 mb-1">Total expenses</p>
+        <p class="text-xl font-light text-white">₪{{ format(stats().totalExpenses) }}</p>
+      </div>
+      <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <p class="text-xs font-light text-slate-500 mb-1">Average per person</p>
+        <p class="text-xl font-light text-white">₪{{ format(stats().avgPerPerson) }}</p>
+      </div>
+      <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <p class="text-xs font-light text-slate-500 mb-1">Members</p>
+        <p class="text-xl font-light text-white">{{ stats().memberCount }}</p>
+      </div>
+      <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <p class="text-xs font-light text-slate-500 mb-1">Avg / expense</p>
+        <p class="text-xl font-light text-white">
+          ₪{{ format(stats().avgPerExpense) }}
+          <span class="text-xs text-slate-500">({{ stats().expenseCount }})</span>
+        </p>
+      </div>
+    </section>
+
+    <!-- Shared data: charts -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+      <app-pie-card
+        title="Expense distribution by category"
+        valuePrefix="₪"
+        [labels]="categoryChart().labels"
+        [series]="categoryChart().series"
+        emptyMessage="No expenses yet — add one to see the breakdown."
+      />
+      <app-pie-card
+        title="Expense distribution by user"
+        valuePrefix="₪"
+        [labels]="userChart().labels"
+        [series]="userChart().series"
+        emptyMessage="No expenses yet — add one to see the breakdown."
+      />
+    </section>
+
+    <!-- Personal debts (every user) -->
+    @if (balance(); as bal) {
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+        <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-medium tracking-wide text-slate-300">You owe</h3>
+            <span class="text-sm font-light text-red-300">₪{{ format(bal.totalIOwe) }}</span>
+          </div>
+          @if (bal.iOwe.length === 0) {
+            <p class="text-sm font-light text-slate-500">You don't owe anyone. 🎉</p>
+          } @else {
+            <ul class="divide-y divide-white/5">
+              @for (debt of bal.iOwe; track $index) {
+                <li class="flex items-center justify-between py-2.5">
+                  <span class="text-sm font-light text-white">{{ userName(debt.to!) }}</span>
+                  <span class="text-sm font-light text-red-300">₪{{ format(debt.amount) }}</span>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+
+        <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-medium tracking-wide text-slate-300">Owed to you</h3>
+            <span class="text-sm font-light text-emerald-300">₪{{ format(bal.totalOwedToMe) }}</span>
+          </div>
+          @if (bal.owedToMe.length === 0) {
+            <p class="text-sm font-light text-slate-500">No one owes you right now.</p>
+          } @else {
+            <ul class="divide-y divide-white/5">
+              @for (debt of bal.owedToMe; track $index) {
+                <li class="flex items-center justify-between py-2.5">
+                  <span class="text-sm font-light text-white">{{ userName(debt.from!) }}</span>
+                  <span class="text-sm font-light text-emerald-300">₪{{ format(debt.amount) }}</span>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- Administrator view: full group settlement -->
+    @if (isAdmin()) {
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+        <div class="rounded-2xl border border-amber-400/20 bg-amber-400/[0.04] p-5">
+          <h3 class="text-sm font-medium tracking-wide text-amber-100 mb-1">Members status</h3>
+          <p class="text-xs font-light text-slate-400 mb-4">Net balance of every member.</p>
+          <ul class="divide-y divide-white/5">
+            @for (member of ov.members; track member.user._id) {
+              <li class="flex items-center justify-between py-2.5">
+                <span class="text-sm font-light text-white">
+                  {{ userName(member.user) }}
+                  <span class="text-xs text-slate-500">· {{ member.roleInGroup }}</span>
+                </span>
+                <span class="text-sm font-light" [class]="balanceClass(member.balance)">
+                  ₪{{ format(member.balance) }}
+                </span>
+              </li>
+            }
+          </ul>
+        </div>
+
+        <div class="rounded-2xl border border-amber-400/20 bg-amber-400/[0.04] p-5">
+          <h3 class="text-sm font-medium tracking-wide text-amber-100 mb-1">
+            Settlement of all debts
+          </h3>
+          <p class="text-xs font-light text-slate-400 mb-4">
+            Minimum set of transfers to settle the group.
+          </p>
+          @if (ov.settlements.length === 0) {
+            <p class="text-sm font-light text-slate-500">Everyone is settled up. 🎉</p>
+          } @else {
+            <ul class="divide-y divide-white/5">
+              @for (s of ov.settlements; track $index) {
+                <li class="flex items-center justify-between gap-2 py-2.5">
+                  <span class="text-sm font-light text-white truncate">
+                    {{ userName(s.from) }}
+                    <span class="text-slate-500" aria-hidden="true">→</span>
+                    {{ userName(s.to) }}
+                  </span>
+                  <span class="text-sm font-light text-amber-200">₪{{ format(s.amount) }}</span>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- Recent expenses -->
+    <section class="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
+      <h3 class="text-sm font-medium tracking-wide text-slate-300 px-5 pt-5 pb-3">Recent expenses</h3>
+      @if (expenses().length === 0) {
+        <p class="px-5 pb-6 text-sm font-light text-slate-500">No expenses recorded yet.</p>
+      } @else {
+        <ul class="divide-y divide-white/5">
+          @for (expense of expenses(); track expense._id) {
+            <li class="px-5 py-3.5 flex items-center justify-between gap-4 hover:bg-white/[0.02] transition-colors">
+              <div class="min-w-0">
+                <p class="text-sm font-light text-white truncate">
+                  {{ expense.description || 'Expense' }}
+                </p>
+                <p class="text-xs font-light text-slate-500 mt-0.5">
+                  {{ expense.categoryId?.name ?? 'General' }} · paid by
+                  {{ userName(expense.payerId) }}
+                  @if (expense.splitType === 'custom') {
+                    <span class="text-amber-200/70">· partial split</span>
+                  }
+                </p>
+              </div>
+              <span class="text-sm font-light text-white shrink-0">₪{{ format(expense.amount) }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  }
+</div>
+
+@if (showAddExpense() && overview(); as ov) {
+  <app-add-expense
+    [groupId]="groupId()"
+    [members]="ov.members"
+    [categories]="categories()"
+    [currentUserId]="currentUserId()"
+    (closed)="closeAddExpense()"
+    (created)="onExpenseAdded()"
+  />
+}

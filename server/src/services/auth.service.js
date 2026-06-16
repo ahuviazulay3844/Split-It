@@ -38,7 +38,6 @@ const register = async ({ firstName, familyName, email, password, phone }) => {
     }
 
     const user = await User.create({ firstName, familyName, email, password, phone });
-
     const token = signToken(user);
     return { token, user: toSafeUser(user) };
   } catch (err) {
@@ -61,7 +60,7 @@ const login = async ({ email, password }) => {
       err.status = 401;
       throw err;
     }
-
+    
     const token = signToken(user);
     return { token, user: toSafeUser(user) };
   } catch (err) {

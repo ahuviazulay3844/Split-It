@@ -1,0 +1,23 @@
+<div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 h-full flex flex-col">
+  <h3 class="text-sm font-medium tracking-wide text-slate-300 mb-2">{{ title() }}</h3>
+
+  @if (hasData()) {
+    <div class="flex-1">
+      <apx-chart
+        [series]="series()"
+        [chart]="chart"
+        [labels]="labels()"
+        [colors]="colors"
+        [stroke]="stroke"
+        [dataLabels]="dataLabels"
+        [legend]="legend"
+        [tooltip]="tooltip()"
+        [responsive]="responsive"
+      />
+    </div>
+  } @else {
+    <div class="flex-1 flex items-center justify-center py-12">
+      <p class="text-sm font-light text-slate-500">{{ emptyMessage() }}</p>
+    </div>
+  }
+</div>
