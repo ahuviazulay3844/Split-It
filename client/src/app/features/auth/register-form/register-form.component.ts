@@ -1,4 +1,4 @@
-import { Component, effect, inject, input, output } from '@angular/core';
+import { Component, effect, inject, input, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { RegisterPayload } from '../../../core/models/user.model';
@@ -19,6 +19,7 @@ export class RegisterFormComponent {
 
   protected errorMessage: string | null = null;
   protected loadingState = false;
+  protected readonly showPassword = signal(false);
 
   protected readonly form = this.fb.nonNullable.group({
     firstName: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(50)]],

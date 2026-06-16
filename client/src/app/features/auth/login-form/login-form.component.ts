@@ -1,4 +1,4 @@
-import { Component, inject, output } from '@angular/core';
+import { Component, inject, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { LoginPayload } from '../../../core/models/user.model';
@@ -19,6 +19,7 @@ export class LoginFormComponent {
 
   protected errorMessage: string | null = null;
   protected loadingState = false;
+  protected readonly showPassword = signal(false);
 
   protected readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],

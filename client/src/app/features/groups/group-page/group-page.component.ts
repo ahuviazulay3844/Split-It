@@ -1,4 +1,5 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
@@ -6,6 +7,7 @@ import { CategoryRef, Expense } from '../../../core/models/expense.model';
 import { GroupOverview, PersonalBalance } from '../../../core/models/group.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { GroupService } from '../../../core/services/group.service';
+import { SocketService } from '../../../core/services/socket.service';
 import { PieCardComponent } from '../../../shared/charts/pie-card/pie-card.component';
 import { AddExpenseComponent } from '../add-expense/add-expense.component';
 
@@ -22,6 +24,8 @@ interface ChartData {
 export class GroupPageComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly groupService = inject(GroupService);
+  private readonly socketService = inject(SocketService);
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly auth = inject(AuthService);
 
   protected readonly groupId = signal('');
@@ -91,6 +95,23 @@ export class GroupPageComponent implements OnInit {
     const id = this.route.snapshot.paramMap.get('groupId') ?? '';
     this.groupId.set(id);
     this.loadAll();
+    this.subscribeToGroupUpdates(id);
+  }
+
+  private subscribeToGroupUpdates(groupId: string): void {
+    if (!groupId) return;
+    this.socketService.joinGroup(groupId);
+
+    this.socketService
+      .onGroupUpdated()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((event) => {
+        if (event.groupId === groupId) {
+          this.loadAll();
+        }
+      });
+
+    this.destroyRef.onDestroy(() => this.socketService.leaveGroup(groupId));
   }
 
   protected loadAll(): void {
