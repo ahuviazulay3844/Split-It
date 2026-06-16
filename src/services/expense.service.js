@@ -134,12 +134,14 @@ const addExpense = async (
       throw err;
     }
 
-    // Build the per-participant shares. A custom split lets each person owe a
-    // different amount; without one the bill is divided equally among all members.
-    let participants;
+    // --- הנה השינוי כאן ---
     let expenseSplits;
     let splitType;
+    // נשתמש בכל חברי הקבוצה כברירת מחדל, ללא קשר אם שלחו splits או לא
+    const participants = members.map((m) => m.userId);
+
     if (splits && splits.length > 0) {
+      // אם שלחו splits ספציפיים, נוודא שהם חברים בקבוצה
       for (const s of splits) {
         if (!memberIds.has(String(s.userId))) {
           const err = new Error('Every split participant must be an active member of the group');
@@ -147,15 +149,15 @@ const addExpense = async (
           throw err;
         }
       }
-      participants = splits.map((s) => s.userId);
       expenseSplits = splits.map((s) => ({ userId: s.userId, share: round2(s.amount) }));
       splitType = 'custom';
     } else {
-      participants = members.map((m) => m.userId);
+      // חלוקה אוטומטית שווה בשווה לכל חברי הקבוצה
       const equalShare = round2(amount / participants.length);
       expenseSplits = participants.map((userId) => ({ userId, share: equalShare }));
       splitType = 'equal';
     }
+    // --- סוף השינוי ---
 
     const [expense] = await Expense.create(
       [
@@ -185,7 +187,6 @@ const addExpense = async (
     session.endSession();
   }
 };
-
 /**
  * Lists a group's expenses (newest first) for an active member.
  */
