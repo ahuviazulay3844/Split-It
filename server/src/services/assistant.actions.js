@@ -60,6 +60,17 @@ const normalize = (str = '') =>
     .replace(/\s+/g, ' ')
     .trim();
 
+/**
+ * Strips a single leading Hebrew one-letter prefix particle (ה/ו/ב/כ/ל/מ/ש —
+ * "the/and/in/as/to/from/that") from the FIRST word, so a name the user wrote
+ * with an attached preposition ("בדירה בתל אביב") still matches the stored group
+ * ("דירה בתל אביב"). Only applied when something remains after stripping.
+ */
+const stripHePrefix = (str = '') => {
+  const stripped = str.replace(/^[הובכלמש]/, '');
+  return stripped.length >= 2 ? stripped : str;
+};
+
 /** Classic Levenshtein edit distance between two strings. */
 const editDistance = (a, b) => {
   if (a === b) return 0;
@@ -129,9 +140,14 @@ const resolveGroup = async (userId, groupName, ctx = {}) => {
   }
 
   const needle = normalize(groupName);
+  const baseNeedle = stripHePrefix(needle);
 
-  // STEP A — perfect match: continue immediately, without questions.
-  const exact = groups.filter((g) => normalize(g.groupName) === needle);
+  // STEP A — perfect match: continue immediately, without questions. Tolerant of
+  // a leading Hebrew preposition on either side (e.g. "בדירה" === "דירה").
+  const exact = groups.filter((g) => {
+    const n = normalize(g.groupName);
+    return n === needle || stripHePrefix(n) === baseNeedle;
+  });
   if (exact.length === 1) return exact[0];
   if (exact.length > 1) {
     const names = exact.map((g) => g.groupName).join(', ');

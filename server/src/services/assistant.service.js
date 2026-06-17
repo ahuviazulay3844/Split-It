@@ -65,17 +65,36 @@ const joinText = (parts) =>
 
 const isHebrew = (text) => /[\u0590-\u05FF]/.test(text || '');
 
-/** Friendly "too many requests right now" message in the user's language. */
-const busyMessage = (message, retryAfterMs) => {
-  const secs = retryAfterMs ? Math.ceil(retryAfterMs / 1000) : null;
-  if (isHebrew(message)) {
-    return secs
-      ? `אני קצת עמוס כרגע 🙏 נסו שוב בעוד כ-${secs} שניות.`
-      : 'אני קצת עמוס כרגע 🙏 נסו שוב בעוד רגע.';
+/** User-facing message when Gemini is unavailable (quota / rate / overload). */
+const busyMessage = (message, err = {}) => {
+  const he = isHebrew(message);
+  const kind = err.quotaKind || 'rate';
+  const secs = err.retryAfterMs ? Math.ceil(err.retryAfterMs / 1000) : null;
+
+  if (kind === 'daily') {
+    return he
+      ? 'הגעת למכסה היומית של Gemini בחינם (כ־20 בקשות ביום למודל). המכסה מתאפסת בחצות לפי שעון קליפורניה. נסו מחר, או צרו מפתח API חדש ב-AI Studio / הפעילו חיוב.'
+      : 'You hit the free Gemini daily quota (~20 requests/day per model). It resets at midnight Pacific Time. Try again tomorrow, or create a new API key in AI Studio / enable billing.';
   }
-  return secs
-    ? `I'm a bit busy right now 🙏 please try again in ~${secs}s.`
-    : "I'm a bit busy right now 🙏 please try again in a moment.";
+
+  if (kind === 'busy') {
+    return he
+      ? secs
+        ? `השירות של Google עמוס כרגע. נסו שוב בעוד כ-${secs} שניות.`
+        : 'השירות של Google עמוס כרגע. נסו שוב בעוד רגע.'
+      : secs
+        ? `Google's service is busy right now. Please try again in ~${secs}s.`
+        : "Google's service is busy right now. Please try again in a moment.";
+  }
+
+  // Per-minute rate limit — short wait actually helps here.
+  return he
+    ? secs
+      ? `יותר מדי בקשות ברגע זה. נסו שוב בעוד כ-${secs} שניות.`
+      : 'יותר מדי בקשות ברגע זה. נסו שוב בעוד רגע.'
+    : secs
+      ? `Too many requests right now. Please try again in ~${secs}s.`
+      : 'Too many requests right now. Please try again in a moment.';
 };
 
 const ils = (n) => `₪${Number(n || 0).toFixed(2)}`;
@@ -177,7 +196,9 @@ const summarizeResult = (name, result = {}, message) => {
  * @returns {Promise<{reply:string, action:Object|null, affectedGroupId:string|null}>}
  */
 const chat = async (userId, message, history = []) => {
-  const contents = [...historyToContents(history), { role: 'user', parts: [{ text: message }] }];
+  // Keep only recent turns — large histories burn TPM quota on the free tier.
+  const recentHistory = history.slice(-8);
+  const contents = [...historyToContents(recentHistory), { role: 'user', parts: [{ text: message }] }];
 
   let parts;
   try {
@@ -190,7 +211,7 @@ const chat = async (userId, message, history = []) => {
     // Out of free-tier quota: degrade to a friendly "busy" reply instead of an
     // error, so the chat never shows Google's raw quota dump.
     if (err.status === 429) {
-      return { reply: busyMessage(message, err.retryAfterMs), action: null, affectedGroupId: null };
+      return { reply: busyMessage(message, err), action: null, affectedGroupId: null };
     }
     throw err;
   }
