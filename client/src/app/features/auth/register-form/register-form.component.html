@@ -110,9 +110,12 @@
       type="tel"
       formControlName="phone"
       autocomplete="tel"
-      placeholder="+1 555 000 0000"
+      placeholder="05xxxxxxxx"
       class="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-light text-white placeholder:text-slate-600 outline-none transition-colors focus:border-amber-400/40 focus:bg-white/[0.07]"
     />
+    @if (fieldError('phone')) {
+      <p class="text-xs font-light text-red-400/90">{{ fieldError('phone') }}</p>
+    }
   </div>
 
   @if (errorMessage) {

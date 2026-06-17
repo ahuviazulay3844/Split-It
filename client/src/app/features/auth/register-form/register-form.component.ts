@@ -26,7 +26,7 @@ export class RegisterFormComponent {
     familyName: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(50)]],
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8), Validators.maxLength(128)]],
-    phone: [''],
+    phone: ['', [Validators.pattern(/^05\d{8}$/)]],
   });
 
   constructor() {
@@ -105,6 +105,10 @@ export class RegisterFormComponent {
 
     if (control.errors['email']) {
       return 'כתובת הדוא"ל אינה תקינה';
+    }
+
+    if (control.errors['pattern']) {
+      return 'מספר טלפון לא תקין';
     }
 
     return null;
