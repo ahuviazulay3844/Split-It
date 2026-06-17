@@ -1,4 +1,8 @@
 require('dotenv').config();
+console.log('--- DIAGNOSTIC ---');
+console.log('Is GEMINI_API_KEY defined?', !!process.env.GEMINI_API_KEY);
+console.log('First 5 chars of key:', process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.substring(0, 5) : 'N/A');
+console.log('------------------');
 const http = require('http');
 const express = require('express');
 const connectDB = require('./config/db');

@@ -7,5 +7,8 @@
     "server": "npm --prefix server run dev",
     "client": "npm --prefix client start",
     "build:client": "npm --prefix client run build"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2"
   }
 }
