@@ -7,7 +7,7 @@
   </a>
 
   @if (loading()) {
-    <p class="px-6 py-16 text-center text-sm font-light text-slate-500">טוענים קבוצה…</p>
+    <p class="px-6 py-16 text-center text-sm font-light text-slate-500">טוען קבוצה…</p>
   } @else if (error()) {
     <div class="px-6 py-16 text-center">
       <p class="text-sm font-light text-red-300/90 mb-4">{{ error() }}</p>
@@ -178,10 +178,11 @@
               @for (s of ov.settlements; track s.settlementId) {
                 <li class="flex items-center justify-between gap-3 py-2.5">
                   <div class="min-w-0 flex items-center gap-2">
-                    <span class="text-sm font-light text-white truncate">
-                      {{ userName(s.from) }}
-                      <span class="text-slate-500" aria-hidden="true">←</span>
-                      {{ userName(s.to) }}
+                    <!-- dir=ltr keeps debtor → creditor arrow semantics clear in RTL pages -->
+                    <span dir="ltr" class="inline-flex items-center gap-1.5 min-w-0">
+                      <span class="text-sm font-light text-white truncate">{{ userName(s.from) }}</span>
+                      <span class="text-slate-500 shrink-0" aria-hidden="true">→</span>
+                      <span class="text-sm font-light text-white truncate">{{ userName(s.to) }}</span>
                     </span>
                     <span class="text-sm font-light text-amber-200 shrink-0">₪{{ format(s.amount) }}</span>
                   </div>

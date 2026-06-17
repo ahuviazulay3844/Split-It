@@ -55,7 +55,7 @@
         />
 
         @if (searching()) {
-          <p class="text-xs font-light text-slate-500">מחפשים…</p>
+          <p class="text-xs font-light text-slate-500">מחפש…</p>
         }
 
         @if (searchResults().length > 0) {
@@ -107,7 +107,7 @@
         class="w-full rounded-lg border border-amber-400/30 bg-amber-400/10 py-2.5 text-sm font-medium tracking-wide text-amber-100 cursor-pointer transition-all hover:bg-amber-400/20 hover:border-amber-400/50 disabled:opacity-50 disabled:cursor-not-allowed"
         [disabled]="loadingState || selectedMembers().length < 1"
       >
-        {{ loadingState ? 'יוצרים…' : 'יצירת קבוצה' }}
+        {{ loadingState ? 'יוצר…' : 'יצירת קבוצה' }}
       </button>
     </form>
   </div>

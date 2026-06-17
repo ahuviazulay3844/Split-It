@@ -20,7 +20,7 @@ import { HealthService } from '../../core/services/health.service';
         <div>
           <p class="label">חיבור ל-API</p>
           @if (loading()) {
-            <h2>בודקים...</h2>
+            <h2>בודק...</h2>
           } @else if (health()) {
             <h2>מחובר</h2>
             <p>סטטוס שרת: {{ health()?.status }}</p>
