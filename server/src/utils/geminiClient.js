@@ -13,8 +13,28 @@
  *   - GEMINI_BASE_URL  (optional) override for the API host.
  */
 
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+// gemini-2.5-flash-lite is small, fast and cheap, and (unlike the 2.0 models)
+// has free-tier quota available on this project — so it avoids the constant
+// "quota exceeded" errors while keeping token usage low.
+const DEFAULT_MODEL = 'gemini-2.5-flash-lite';
 const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// On a 429 we retry once if Google's suggested wait is short; longer waits are
+// surfaced to the caller (so the UI never hangs for half a minute).
+const MAX_RETRIES = 1;
+const MAX_RETRY_WAIT_MS = 6000;
+
+/** Pulls the suggested retry delay (ms) out of Gemini's 429 error payload. */
+const parseRetryDelayMs = (data) => {
+  const details = (data && data.error && data.error.details) || [];
+  const retryInfo = details.find((d) => String(d['@type'] || '').includes('RetryInfo'));
+  const raw = retryInfo && retryInfo.retryDelay; // e.g. "38s" or "1.5s"
+  if (!raw) return null;
+  const seconds = parseFloat(String(raw).replace('s', ''));
+  return Number.isFinite(seconds) ? Math.ceil(seconds * 1000) : null;
+};
 
 // Corporate proxies/antivirus sometimes break Gemini TLS. Opt-in via env (dev only).
 if (process.env.GEMINI_TLS_INSECURE === 'true') {
@@ -57,38 +77,53 @@ const generateContent = async ({ systemInstruction, contents, tools, toolConfig 
   if (tools) body.tools = tools;
   if (toolConfig) body.toolConfig = toolConfig;
 
-  let response;
-  try {
-    response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
-      },
-      body: JSON.stringify(body),
-    });
-  } catch (cause) {
-    const err = new Error('Could not reach the Gemini API');
-    err.status = 502;
-    err.cause = cause;
-    throw err;
-  }
+  for (let attempt = 0; ; attempt += 1) {
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify(body),
+      });
+    } catch (cause) {
+      const err = new Error('Could not reach the Gemini API');
+      err.status = 502;
+      err.cause = cause;
+      throw err;
+    }
 
-  const data = await response.json().catch(() => ({}));
+    const data = await response.json().catch(() => ({}));
 
-  if (!response.ok) {
+    if (response.ok) {
+      const candidate = data.candidates && data.candidates[0];
+      return (candidate && candidate.content && candidate.content.parts) || [];
+    }
+
+    // Rate limited: retry once if the suggested wait is short; otherwise give a
+    // clean, friendly error instead of Google's long English quota dump.
+    if (response.status === 429) {
+      const waitMs = parseRetryDelayMs(data);
+      if (attempt < MAX_RETRIES && waitMs !== null && waitMs <= MAX_RETRY_WAIT_MS) {
+        await sleep(waitMs);
+        continue;
+      }
+      const err = new Error('QUOTA_EXCEEDED');
+      err.status = 429;
+      err.retryAfterMs = waitMs || null;
+      throw err;
+    }
+
     const message =
       (data && data.error && data.error.message) || `Gemini request failed (${response.status})`;
     const err = new Error(message);
-    // Treat any upstream failure as a 502 so we never report Gemini's own 4xx
-    // (bad key, quota, etc.) as if it were the client's fault.
+    // Treat other upstream failures as a 502 so we never report Gemini's own 4xx
+    // (bad key, etc.) as if it were the client's fault.
     err.status = 502;
     throw err;
   }
-
-  const candidate = data.candidates && data.candidates[0];
-  const parts = (candidate && candidate.content && candidate.content.parts) || [];
-  return parts;
 };
 
 module.exports = { generateContent };

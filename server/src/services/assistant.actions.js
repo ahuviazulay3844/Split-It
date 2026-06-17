@@ -33,41 +33,142 @@ const clientError = (message, status = 400) => {
 };
 
 /**
- * Resolves one of the user's active groups from a (possibly fuzzy) name the
- * model extracted from chat. Exact case-insensitive match wins; otherwise a
- * single "contains" match is accepted. Ambiguity/no-match throws a clarifying
- * error so the assistant can ask the user to be more specific.
+ * A message meant to be shown to the user as a normal, conversational assistant
+ * reply (a confirmation question, a clarification, or a soft validation note) —
+ * NOT as an error. The assistant service detects `assistantReply` and returns
+ * `err.message` verbatim while stopping the action from running.
  */
-const resolveGroup = async (userId, groupName) => {
-  const groups = await getUserActiveGroups(userId);
-  if (groups.length === 0) {
-    throw clientError('You are not a member of any group yet. Create one first.');
+const assistantAsk = (message) => {
+  const err = new Error(message);
+  err.assistantReply = true;
+  return err;
+};
+
+/**
+ * Normalises a name for tolerant matching: lowercase, trim, collapse spaces,
+ * strip Hebrew niqqud/punctuation, and unify final-form Hebrew letters
+ * (ך→כ, ם→מ, ן→נ, ף→פ, ץ→צ) so typos like "דנה"/"דנא" still line up.
+ */
+const normalize = (str = '') =>
+  str
+    .toString()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0591-\u05C7]/g, '') // Hebrew niqqud / cantillation
+    .replace(/[ךםןףץ]/g, (c) => ({ ך: 'כ', ם: 'מ', ן: 'נ', ף: 'פ', ץ: 'צ' }[c]))
+    .replace(/[^\p{L}\p{N}\s@.]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/** Classic Levenshtein edit distance between two strings. */
+const editDistance = (a, b) => {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i += 1) {
+    const curr = [i];
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+    }
+    prev = curr;
   }
+  return prev[b.length];
+};
+
+/**
+ * True when `candidate` is "close enough" to `needle` to count as the same name
+ * despite a small spelling mistake. Tolerance scales with length: short names
+ * allow 1 typo, longer names allow up to ~25% of their characters.
+ */
+const isFuzzyMatch = (needle, candidate) => {
+  const a = normalize(needle);
+  const b = normalize(candidate);
+  if (!a || !b) return false;
+  if (a === b || b.includes(a) || a.includes(b)) return true;
+  const tolerance = Math.max(1, Math.floor(Math.max(a.length, b.length) * 0.25));
+  return editDistance(a, b) <= tolerance;
+};
+
+/**
+ * Resolves one of the user's active groups from a name the model extracted from
+ * chat, using a three-step "soft validation" flow (messages in the user's
+ * language via `ctx.he`):
+ *
+ *   Step A — Perfect match: an exact (normalised) match continues immediately,
+ *            no questions asked. This also prevents asking to confirm a name the
+ *            user already typed exactly.
+ *   Step B — High match: when there is no exact match but exactly ONE close
+ *            (fuzzy) candidate, it does NOT guess — it returns a confirmation
+ *            question ("I found the group X. Is that what you meant?").
+ *   Step C — Uncertainty: when several candidates match, or none do, it stops,
+ *            lists the available groups, and asks the user to be precise.
+ */
+const resolveGroup = async (userId, groupName, ctx = {}) => {
+  const he = !!ctx.he;
+  const groups = await getUserActiveGroups(userId);
+  const allNames = () => groups.map((g) => g.groupName).join(', ');
+
+  if (groups.length === 0) {
+    throw assistantAsk(
+      he
+        ? 'עדיין אין לך קבוצות. אפשר ליצור קבוצה חדשה קודם.'
+        : "You don't have any groups yet. Create one first."
+    );
+  }
+
+  // No name supplied: only safe to proceed when there is exactly one group.
   if (!groupName) {
     if (groups.length === 1) return groups[0];
-    throw clientError(
-      `Which group? You belong to: ${groups.map((g) => g.groupName).join(', ')}.`
+    throw assistantAsk(
+      he
+        ? `לאיזו קבוצה התכוונת? הקבוצות שלך: ${allNames()}.`
+        : `Which group did you mean? Your groups: ${allNames()}.`
     );
   }
 
-  const needle = groupName.trim().toLowerCase();
-  const exact = groups.filter((g) => g.groupName.toLowerCase() === needle);
+  const needle = normalize(groupName);
+
+  // STEP A — perfect match: continue immediately, without questions.
+  const exact = groups.filter((g) => normalize(g.groupName) === needle);
   if (exact.length === 1) return exact[0];
-
-  const partial = groups.filter((g) => g.groupName.toLowerCase().includes(needle));
-  if (partial.length === 1) return partial[0];
-
-  if (exact.length + partial.length === 0) {
-    throw clientError(
-      `No group named "${groupName}". Your groups: ${groups
-        .map((g) => g.groupName)
-        .join(', ')}.`
+  if (exact.length > 1) {
+    const names = exact.map((g) => g.groupName).join(', ');
+    throw assistantAsk(
+      he
+        ? `יש לך כמה קבוצות עם השם הזה: ${names}. אפשר לדייק?`
+        : `You have several groups with that exact name: ${names}. Please be more specific.`
     );
   }
-  throw clientError(
-    `"${groupName}" matches more than one group: ${[...exact, ...partial]
-      .map((g) => g.groupName)
-      .join(', ')}. Please be more specific.`
+
+  // No exact match — gather close (fuzzy) candidates.
+  const fuzzy = groups.filter((g) => isFuzzyMatch(groupName, g.groupName));
+
+  // STEP B — exactly one strong candidate: ask to confirm, do not guess.
+  if (fuzzy.length === 1) {
+    throw assistantAsk(
+      he
+        ? `מצאתי את הקבוצה "${fuzzy[0].groupName}". לזה התכוונת? אם כן, כתבו "כן".`
+        : `I found the group "${fuzzy[0].groupName}". Is that what you meant? If so, reply "yes".`
+    );
+  }
+
+  // STEP C — several candidates: list them and ask the user to pick.
+  if (fuzzy.length > 1) {
+    const names = fuzzy.map((g) => g.groupName).join(', ');
+    throw assistantAsk(
+      he
+        ? `מצאתי כמה קבוצות דומות: ${names}. לאיזו התכוונת?`
+        : `I found several similar groups: ${names}. Which one did you mean?`
+    );
+  }
+
+  // STEP C — nothing matched: show what the user does have.
+  throw assistantAsk(
+    he
+      ? `לא מצאתי קבוצה בשם "${groupName}". הקבוצות שלך: ${allNames()}.`
+      : `I couldn't find a group named "${groupName}". Your groups: ${allNames()}.`
   );
 };
 
@@ -76,25 +177,58 @@ const resolveGroup = async (userId, groupName) => {
  * Prefers an exact email match, then an exact full-name match, then a single
  * search hit. Anything ambiguous throws a clarifying error.
  */
-const resolveUser = async (query, excludeUserId) => {
-  const results = await searchUsers(query, excludeUserId);
+const resolveUser = async (query, excludeUserId, ctx = {}) => {
+  const he = !!ctx.he;
+
+  // Search the full query first; if a typo means it returns nothing, broaden the
+  // net by searching each word separately (e.g. a correct surname can surface the
+  // person even when the first name was misspelled) and de-duplicate the hits.
+  let results = await searchUsers(query, excludeUserId);
   if (results.length === 0) {
-    throw clientError(`No user found matching "${query}".`);
+    const tokens = query.split(/\s+/).filter((t) => t.trim().length >= 2);
+    const seen = new Set();
+    results = [];
+    for (const token of tokens) {
+      const hits = await searchUsers(token, excludeUserId);
+      for (const u of hits) {
+        if (!seen.has(String(u._id))) {
+          seen.add(String(u._id));
+          results.push(u);
+        }
+      }
+    }
   }
 
-  const needle = query.trim().toLowerCase();
-  const byEmail = results.find((u) => u.email.toLowerCase() === needle);
+  if (results.length === 0) {
+    throw assistantAsk(
+      he ? `לא מצאתי משתמש בשם "${query}".` : `I couldn't find anyone named "${query}".`
+    );
+  }
+
+  const needle = normalize(query);
+
+  // Exact email wins.
+  const byEmail = results.find((u) => normalize(u.email) === needle);
   if (byEmail) return byEmail;
 
-  const byName = results.filter((u) => fullName(u).toLowerCase() === needle);
+  // Exact (normalised) full-name match.
+  const byName = results.filter((u) => normalize(fullName(u)) === needle);
   if (byName.length === 1) return byName[0];
 
+  // A single search hit is good enough.
   if (results.length === 1) return results[0];
 
-  throw clientError(
-    `"${query}" matches several people: ${results
-      .map((u) => `${fullName(u)} (${u.email})`)
-      .join('; ')}. Use a full name or email.`
+  // Fuzzy match against full name or first name to absorb small typos.
+  const fuzzy = results.filter(
+    (u) => isFuzzyMatch(query, fullName(u)) || isFuzzyMatch(query, u.firstName)
+  );
+  if (fuzzy.length === 1) return fuzzy[0];
+
+  const people = results.map((u) => `${fullName(u)} (${u.email})`).join('; ');
+  throw assistantAsk(
+    he
+      ? `"${query}" מתאים לכמה אנשים: ${people}. אפשר לכתוב שם מלא או אימייל?`
+      : `"${query}" matches several people: ${people}. Please use a full name or email.`
   );
 };
 
@@ -121,16 +255,23 @@ const actions = {
         required: ['groupName', 'members'],
       },
     },
-    execute: async (userId, args = {}) => {
+    execute: async (userId, args = {}, ctx = {}) => {
+      const he = !!ctx.he;
       const { groupName, members = [] } = args;
-      if (!groupName) throw clientError('A group name is required to create a group.');
+      if (!groupName) {
+        throw assistantAsk(he ? 'איך לקרוא לקבוצה החדשה?' : 'What should the new group be called?');
+      }
       if (!Array.isArray(members) || members.length === 0) {
-        throw clientError('Add at least one other member to create a group.');
+        throw assistantAsk(
+          he
+            ? 'את מי להוסיף לקבוצה? צריך לפחות חבר/ה אחד/ת נוסף/ת.'
+            : 'Who should I add to the group? At least one other person is required.'
+        );
       }
 
       const resolved = [];
       for (const ref of members) {
-        const user = await resolveUser(ref, userId);
+        const user = await resolveUser(ref, userId, ctx);
         resolved.push(user);
       }
       const memberIds = [...new Set(resolved.map((u) => String(u._id)))];
@@ -176,15 +317,20 @@ const actions = {
         required: ['amount'],
       },
     },
-    execute: async (userId, args = {}) => {
+    execute: async (userId, args = {}, ctx = {}) => {
+      const he = !!ctx.he;
       const { groupName, amount, description, paidBy } = args;
-      if (!(amount > 0)) throw clientError('Expense amount must be a positive number.');
+      if (!(amount > 0)) {
+        throw assistantAsk(
+          he ? 'מה סכום ההוצאה?' : 'What is the amount of the expense?'
+        );
+      }
 
-      const group = await resolveGroup(userId, groupName);
+      const group = await resolveGroup(userId, groupName, ctx);
 
       let payerId;
       if (paidBy) {
-        const payer = await resolveUser(paidBy, null);
+        const payer = await resolveUser(paidBy, null, ctx);
         payerId = String(payer._id);
       }
 
@@ -228,12 +374,17 @@ const actions = {
         required: ['counterpart'],
       },
     },
-    execute: async (userId, args = {}) => {
+    execute: async (userId, args = {}, ctx = {}) => {
+      const he = !!ctx.he;
       const { groupName, counterpart } = args;
-      if (!counterpart) throw clientError('Tell me who the debt is with to settle it.');
+      if (!counterpart) {
+        throw assistantAsk(
+          he ? 'עם מי החוב שתרצה/י לסגור?' : 'Who is the debt with?'
+        );
+      }
 
-      const group = await resolveGroup(userId, groupName);
-      const other = await resolveUser(counterpart, userId);
+      const group = await resolveGroup(userId, groupName, ctx);
+      const other = await resolveUser(counterpart, userId, ctx);
 
       const overview = await getGroupOverview(String(group._id), userId);
       const uid = String(userId);
@@ -245,8 +396,10 @@ const actions = {
       });
 
       if (!match) {
-        throw clientError(
-          `There is no open debt between you and ${fullName(other)} in "${group.groupName}".`
+        throw assistantAsk(
+          he
+            ? `אין חוב פתוח בינך לבין ${fullName(other)} בקבוצה "${group.groupName}".`
+            : `There is no open debt between you and ${fullName(other)} in "${group.groupName}".`
         );
       }
 
@@ -269,7 +422,7 @@ const actions = {
         "List the current user's groups together with their overall balance and pending debts. Use for questions like 'what groups am I in' or 'how much do I owe overall'.",
       parameters: { type: 'object', properties: {} },
     },
-    execute: async (userId) => {
+    execute: async (userId, _args = {}, _ctx = {}) => {
       const dashboard = await getDashboard(userId);
       return {
         groupCount: dashboard.groupCount,
@@ -297,8 +450,8 @@ const actions = {
         },
       },
     },
-    execute: async (userId, args = {}) => {
-      const group = await resolveGroup(userId, args.groupName);
+    execute: async (userId, args = {}, ctx = {}) => {
+      const group = await resolveGroup(userId, args.groupName, ctx);
       const expenses = await listGroupExpenses(String(group._id), userId);
       return {
         groupName: group.groupName,
@@ -326,8 +479,8 @@ const actions = {
         },
       },
     },
-    execute: async (userId, args = {}) => {
-      const group = await resolveGroup(userId, args.groupName);
+    execute: async (userId, args = {}, ctx = {}) => {
+      const group = await resolveGroup(userId, args.groupName, ctx);
       const overview = await getGroupOverview(String(group._id), userId);
       return {
         groupName: overview.group.groupName,
@@ -358,10 +511,10 @@ const toolDeclarations = [
  * Executes a model-selected action by name. Throws a 400 if the model invents
  * an unknown action (defensive — the model is constrained to the declarations).
  */
-const executeAction = async (name, userId, args) => {
+const executeAction = async (name, userId, args, ctx = {}) => {
   const action = actions[name];
-  if (!action) throw clientError(`Unknown action "${name}".`, 400);
-  return action.execute(userId, args || {});
+  if (!action) throw clientError(`פעולה לא מוכרת: "${name}".`, 400);
+  return action.execute(userId, args || {}, ctx);
 };
 
 module.exports = { actions, toolDeclarations, executeAction };
