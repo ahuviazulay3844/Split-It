@@ -55,8 +55,14 @@ const login = async ({ email, password }) => {
   try {
     const user = await User.findOne({ email }).select('+password');
 
-    if (!user || !(await user.comparePassword(password))) {
-      const err = new Error('Invalid email or password');
+    if (!user) {
+      const err = new Error('No account found with this email');
+      err.status = 404;
+      throw err;
+    }
+
+    if (!(await user.comparePassword(password))) {
+      const err = new Error('Incorrect password');
       err.status = 401;
       throw err;
     }

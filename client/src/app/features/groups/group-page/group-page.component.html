@@ -31,13 +31,22 @@
           קוד {{ ov.group.groupCode }} · מנהל/ת {{ userName(ov.group.admin) }}
         </p>
       </div>
-      <button
-        type="button"
-        class="self-start inline-flex items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-2.5 text-sm font-medium tracking-wide text-amber-100 cursor-pointer transition-all hover:bg-amber-400/20 hover:border-amber-400/50"
-        (click)="openAddExpense()"
-      >
-        <span class="text-base leading-none" aria-hidden="true">+</span> הוספת הוצאה
-      </button>
+      <div class="flex items-center gap-3">
+        <button
+          type="button"
+          class="self-start inline-flex items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-2.5 text-sm font-medium tracking-wide text-amber-100 cursor-pointer transition-all hover:bg-amber-400/20 hover:border-amber-400/50"
+          (click)="openAddExpense()"
+        >
+          <span class="text-base leading-none" aria-hidden="true">+</span> הוספת הוצאה
+        </button>
+        <button
+          type="button"
+          class="text-xs font-medium tracking-wide text-slate-400 border border-white/10 rounded-lg px-4 py-2.5 bg-transparent cursor-pointer transition-colors hover:text-white hover:border-white/20"
+          (click)="auth.logout()"
+        >
+          התנתקות
+        </button>
+      </div>
     </header>
 
     <!-- Stat cards -->
@@ -171,19 +180,21 @@
                   <div class="min-w-0 flex items-center gap-2">
                     <span class="text-sm font-light text-white truncate">
                       {{ userName(s.from) }}
-                      <span class="text-slate-500" aria-hidden="true">→</span>
+                      <span class="text-slate-500" aria-hidden="true">←</span>
                       {{ userName(s.to) }}
                     </span>
                     <span class="text-sm font-light text-amber-200 shrink-0">₪{{ format(s.amount) }}</span>
                   </div>
-                  <button
-                    type="button"
-                    class="shrink-0 text-xs font-medium tracking-wide rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-emerald-200 cursor-pointer transition-all hover:bg-emerald-400/20 disabled:opacity-40 disabled:cursor-not-allowed"
-                    [disabled]="settlingId() === s.settlementId"
-                    (click)="markAsPaid(s.settlementId)"
-                  >
-                    {{ settlingId() === s.settlementId ? 'מעבד…' : 'סימון כשולם' }}
-                  </button>
+                  @if (s.from._id === currentUserId()) {
+                    <button
+                      type="button"
+                      class="shrink-0 text-xs font-medium tracking-wide rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-emerald-200 cursor-pointer transition-all hover:bg-emerald-400/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                      [disabled]="settlingId() === s.settlementId"
+                      (click)="markAsPaid(s.settlementId)"
+                    >
+                      {{ settlingId() === s.settlementId ? 'מעבד…' : 'סימון כשולם' }}
+                    </button>
+                  }
                 </li>
               }
             </ul>
@@ -208,7 +219,7 @@
                 <p class="text-xs font-light text-slate-500 mt-0.5">
                   {{ expense.categoryId?.name ?? 'כללי' }} · שולם על ידי
                   {{ userName(expense.payerId) }}
-                  @if (expense.splitType === 'custom') {
+                  @if (expense.splits.length > 0 && expense.splits.length < ov.members.length) {
                     <span class="text-amber-200/70">· חלוקה חלקית</span>
                   }
                 </p>

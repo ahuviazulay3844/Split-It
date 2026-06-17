@@ -47,8 +47,15 @@ export class LoginFormComponent {
         const status = err.status;
         const email = this.form.controls.email.getRawValue().trim().toLowerCase();
 
-        if (status === 401 && email) {
+        if (status === 404 && email) {
+          // No account exists for this email — offer to register.
           this.switchToRegister.emit(email);
+          return;
+        }
+
+        if (status === 401) {
+          // Account exists but password is wrong — stay on login form.
+          this.errorMessage = 'הסיסמה שגויה. נסו שוב.';
           return;
         }
 
