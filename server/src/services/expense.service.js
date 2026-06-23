@@ -198,9 +198,19 @@ const addExpense = async (
       expenseSplits = splits.map((s) => ({ userId: s.userId, share: round2(s.amount) }));
       splitType = 'custom';
     } else {
-      // חלוקה אוטומטית שווה בשווה לכל חברי הקבוצה
-      const equalShare = round2(amount / participants.length);
-      expenseSplits = participants.map((userId) => ({ userId, share: equalShare }));
+      // חלוקה אוטומטית שווה בשווה לכל חברי הקבוצה.
+      // כדי להימנע משגיאות עיגול בנקודה הצפה, עובדים באגורות (מספרים שלמים):
+      // ממירים לאגורות, מחלקים בחלוקה שלמה, ומפזרים את השארית אגורה-אגורה.
+      const amountInAgorot = Math.round(amount * 100);
+      const count = participants.length;
+      const baseShare = Math.floor(amountInAgorot / count);
+      let remainder = amountInAgorot % count;
+
+      expenseSplits = participants.map((userId) => {
+        const shareInAgorot = baseShare + (remainder > 0 ? 1 : 0);
+        if (remainder > 0) remainder -= 1;
+        return { userId, share: shareInAgorot / 100 };
+      });
       splitType = 'equal';
     }
     // --- סוף השינוי ---

@@ -53,7 +53,7 @@ export class DashboardComponent implements OnInit {
       error: () => {
         this.dashboard.set(null);
         this.groups.set([]);
-        this.error.set('לא ניתן לטעון את לוח הבקרה. נסו שוב.');
+        this.error.set('לא ניתן לטעון את הקבוצות שלי. נסו שוב.');
         this.loading.set(false);
       },
     });
