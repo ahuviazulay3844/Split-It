@@ -1,5 +1,4 @@
 # SplitIt INIT
-
 ## Structure
 
 ```text

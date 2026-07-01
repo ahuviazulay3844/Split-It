@@ -16,6 +16,10 @@ export class ApiService {
     return this.http.post<TResponse>(this.withBase(path), body);
   }
 
+  patch<TResponse, TBody = unknown>(path: string, body: TBody): Observable<TResponse> {
+    return this.http.patch<TResponse>(this.withBase(path), body);
+  }
+
   private withBase(path: string): string {
     return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
   }

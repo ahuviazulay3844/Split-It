@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { Dashboard } from '../../core/models/dashboard.model';
@@ -19,9 +19,19 @@ export class DashboardComponent implements OnInit {
 
   protected readonly dashboard = signal<Dashboard | null>(null);
   protected readonly groups = signal<GroupSummary[]>([]);
+  protected readonly activeGroups = signal<GroupSummary[]>([]);
+  protected readonly closedGroups = signal<GroupSummary[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly showCreateGroup = signal(false);
+
+  /** Which tab is selected in the personal area: active (default) or closed groups. */
+  protected readonly view = signal<'active' | 'closed'>('active');
+
+  /** Groups shown for the currently selected tab. */
+  protected readonly visibleGroups = computed(() =>
+    this.view() === 'closed' ? this.closedGroups() : this.activeGroups()
+  );
 
   ngOnInit(): void {
     this.loadDashboard();
@@ -46,13 +56,20 @@ export class DashboardComponent implements OnInit {
 
     this.dashboardService.getDashboard().subscribe({
       next: (response) => {
-        this.dashboard.set(response.data ?? null);
-        this.groups.set(response.data?.groups ?? []);
+        const data = response.data ?? null;
+        const allGroups = data?.groups ?? [];
+        this.dashboard.set(data);
+        this.groups.set(allGroups);
+        // Prefer the server split; fall back to deriving it from status for safety.
+        this.activeGroups.set(data?.activeGroups ?? allGroups.filter((g) => g.status !== 'closed'));
+        this.closedGroups.set(data?.closedGroups ?? allGroups.filter((g) => g.status === 'closed'));
         this.loading.set(false);
       },
       error: () => {
         this.dashboard.set(null);
         this.groups.set([]);
+        this.activeGroups.set([]);
+        this.closedGroups.set([]);
         this.error.set('לא ניתן לטעון את הקבוצות שלי. נסו שוב.');
         this.loading.set(false);
       },
@@ -89,5 +106,9 @@ export class DashboardComponent implements OnInit {
 
   protected roleLabel(group: GroupSummary): string {
     return group.roleInGroup === 'Admin' ? 'מנהל/ת' : 'חבר/ה';
+  }
+
+  protected setView(view: 'active' | 'closed'): void {
+    this.view.set(view);
   }
 }

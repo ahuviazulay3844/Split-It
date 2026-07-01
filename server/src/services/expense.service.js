@@ -165,6 +165,11 @@ const addExpense = async (
       err.status = 404;
       throw err;
     }
+    if (group.status === 'closed') {
+      const err = new Error('Cannot add an expense to a closed group');
+      err.status = 400;
+      throw err;
+    }
 
     const members = await GroupMember.find({ groupId, status: 'Active' }).session(session).lean();
     const memberIds = new Set(members.map((m) => String(m.userId)));

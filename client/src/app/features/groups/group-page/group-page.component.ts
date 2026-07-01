@@ -39,6 +39,10 @@ export class GroupPageComponent implements OnInit {
   protected readonly showAddExpense = signal(false);
   /** Tracks which settlementId is currently being confirmed, if any. */
   protected readonly settlingId = signal<string | null>(null);
+  /** True while a close/reopen request is in flight. */
+  protected readonly togglingStatus = signal(false);
+  /** Error message shown next to the close button (e.g. unsettled debts). */
+  protected readonly closeError = signal<string | null>(null);
 
   protected readonly currentUserId = computed(() => this.auth.user()?._id ?? '');
 
@@ -50,6 +54,23 @@ export class GroupPageComponent implements OnInit {
     }
     const me = ov.members.find((m) => m.user._id === this.currentUserId());
     return me?.roleInGroup === 'Admin';
+  });
+
+  /** Whether this group is already closed (inactive). */
+  protected readonly isClosed = computed(() => this.overview()?.group.status === 'closed');
+
+  /**
+   * A group can be closed only when every debt is settled: no open settlement
+   * edges remain and every member's net balance is zero.
+   */
+  protected readonly allDebtsSettled = computed(() => {
+    const ov = this.overview();
+    if (!ov) {
+      return false;
+    }
+    const noTransfers = ov.settlements.length === 0;
+    const balanced = ov.members.every((m) => Math.round(m.balance * 100) === 0);
+    return noTransfers && balanced;
   });
 
   /** Expense distribution by category (sum of amounts per category). */
@@ -176,6 +197,48 @@ export class GroupPageComponent implements OnInit {
       },
       error: () => {
         this.settlingId.set(null);
+      },
+    });
+  }
+
+  /** Admin action: close the group once all debts are settled. */
+  protected closeGroup(): void {
+    if (this.togglingStatus()) {
+      return;
+    }
+    this.togglingStatus.set(true);
+    this.closeError.set(null);
+    this.groupService.closeGroup(this.groupId()).subscribe({
+      next: () => {
+        this.togglingStatus.set(false);
+        this.loadAll();
+      },
+      error: (err) => {
+        this.togglingStatus.set(false);
+        this.closeError.set(
+          err.status === 400
+            ? 'לא ניתן לסגור את הקבוצה כל עוד יש חובות פתוחים.'
+            : 'לא ניתן לסגור את הקבוצה כרגע. נסו שוב.'
+        );
+      },
+    });
+  }
+
+  /** Admin action: reopen a closed group. */
+  protected reopenGroup(): void {
+    if (this.togglingStatus()) {
+      return;
+    }
+    this.togglingStatus.set(true);
+    this.closeError.set(null);
+    this.groupService.reopenGroup(this.groupId()).subscribe({
+      next: () => {
+        this.togglingStatus.set(false);
+        this.loadAll();
+      },
+      error: () => {
+        this.togglingStatus.set(false);
+        this.closeError.set('לא ניתן לפתוח מחדש את הקבוצה כרגע. נסו שוב.');
       },
     });
   }

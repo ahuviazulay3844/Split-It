@@ -61,4 +61,14 @@ export class GroupService {
       settlementId,
     });
   }
+
+  /** Admin-only: closes the group once every debt has been settled. */
+  closeGroup(groupId: string): Observable<ApiResponse<GroupSummary>> {
+    return this.api.patch<ApiResponse<GroupSummary>, unknown>(`/groups/${groupId}/close`, {});
+  }
+
+  /** Admin-only: reopens a previously closed group. */
+  reopenGroup(groupId: string): Observable<ApiResponse<GroupSummary>> {
+    return this.api.patch<ApiResponse<GroupSummary>, unknown>(`/groups/${groupId}/reopen`, {});
+  }
 }

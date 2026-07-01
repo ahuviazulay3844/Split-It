@@ -1,4 +1,4 @@
-const { createGroup } = require('../services/group.service');
+const { createGroup, closeGroup, reopenGroup } = require('../services/group.service');
 
 const create = async (req, res, next) => {
   try {
@@ -10,4 +10,22 @@ const create = async (req, res, next) => {
   }
 };
 
-module.exports = { create };
+const close = async (req, res, next) => {
+  try {
+    const group = await closeGroup(req.params.groupId, req.user._id);
+    res.json({ status: 'success', data: group });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const reopen = async (req, res, next) => {
+  try {
+    const group = await reopenGroup(req.params.groupId, req.user._id);
+    res.json({ status: 'success', data: group });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { create, close, reopen };

@@ -8,6 +8,10 @@ const groupSchema = new mongoose.Schema(
     totalExpenses: { type: Number, default: 0 },
     avgPerPerson: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
+    // Lifecycle status shown in the personal area. A group starts 'active' and can
+    // be moved to 'closed' by its admin only once every debt has been settled.
+    status: { type: String, enum: ['active', 'closed'], default: 'active', index: true },
+    closedAt: { type: Date },
   },
   { timestamps: true }
 );

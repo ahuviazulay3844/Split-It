@@ -90,6 +90,8 @@ const getGroupOverview = async (groupId, userId) => {
       totalExpenses: group.totalExpenses,
       avgPerPerson: group.avgPerPerson,
       memberCount: members.length,
+      status: group.status || 'active',
+      closedAt: group.closedAt || null,
     },
     members: members.map((m) => ({
       user: m.userId,

@@ -5,6 +5,8 @@ export interface UserSummary {
   email: string;
 }
 
+export type GroupStatus = 'active' | 'closed';
+
 export interface GroupSummary {
   _id: string;
   groupCode: string;
@@ -14,6 +16,8 @@ export interface GroupSummary {
   avgPerPerson: number;
   roleInGroup: 'Admin' | 'Member';
   balance: number;
+  status?: GroupStatus;
+  closedAt?: string | null;
   createdAt: string;
 }
 
@@ -50,6 +54,8 @@ export interface GroupOverview {
     totalExpenses: number;
     avgPerPerson: number;
     memberCount: number;
+    status: GroupStatus;
+    closedAt: string | null;
   };
   members: GroupMemberView[];
   settlements: SettlementView[];

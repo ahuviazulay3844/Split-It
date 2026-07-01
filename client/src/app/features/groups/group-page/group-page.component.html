@@ -26,19 +26,30 @@
         <p class="text-xs font-medium tracking-[0.35em] uppercase text-amber-200/80 mb-2">
           {{ isAdmin() ? 'מנהל/ת' : 'חבר/ה' }}
         </p>
-        <h1 class="text-2xl font-light text-white tracking-tight">{{ ov.group.groupName }}</h1>
+        <div class="flex items-center gap-2 flex-wrap">
+          <h1 class="text-2xl font-light text-white tracking-tight">{{ ov.group.groupName }}</h1>
+          @if (isClosed()) {
+            <span
+              class="inline-flex items-center rounded-full border border-slate-400/30 bg-slate-400/10 px-2.5 py-0.5 text-xs font-medium tracking-wide text-slate-300"
+            >
+              קבוצה סגורה
+            </span>
+          }
+        </div>
         <p class="text-sm font-light text-slate-400 mt-1">
           קוד {{ ov.group.groupCode }} · מנהל/ת {{ userName(ov.group.admin) }}
         </p>
       </div>
       <div class="flex items-center gap-3">
-        <button
-          type="button"
-          class="self-start inline-flex items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-2.5 text-sm font-medium tracking-wide text-amber-100 cursor-pointer transition-all hover:bg-amber-400/20 hover:border-amber-400/50"
-          (click)="openAddExpense()"
-        >
-          <span class="text-base leading-none" aria-hidden="true">+</span> הוספת הוצאה
-        </button>
+        @if (!isClosed()) {
+          <button
+            type="button"
+            class="self-start inline-flex items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-2.5 text-sm font-medium tracking-wide text-amber-100 cursor-pointer transition-all hover:bg-amber-400/20 hover:border-amber-400/50"
+            (click)="openAddExpense()"
+          >
+            <span class="text-base leading-none" aria-hidden="true">+</span> הוספת הוצאה
+          </button>
+        }
         <button
           type="button"
           class="text-xs font-medium tracking-wide text-slate-400 border border-white/10 rounded-lg px-4 py-2.5 bg-transparent cursor-pointer transition-colors hover:text-white hover:border-white/20"
@@ -172,7 +183,39 @@
             רשימת ההעברות המינימלית לסגירת החובות בקבוצה.
           </p>
           @if (ov.settlements.length === 0) {
-            <p class="text-sm font-light text-slate-500">כל החברים מאוזנים.</p>
+            <p class="text-sm font-light text-slate-500 mb-4">כל החברים מאוזנים.</p>
+
+            <!-- Manager can archive the group once everything is settled -->
+            <div class="border-t border-white/10 pt-4">
+              @if (isClosed()) {
+                <p class="text-sm font-light text-slate-400 mb-3">
+                  הקבוצה סגורה. ניתן לפתוח אותה מחדש כדי להוסיף הוצאות.
+                </p>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-transparent px-4 py-2 text-xs font-medium tracking-wide text-slate-300 cursor-pointer transition-colors hover:text-white hover:border-white/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                  [disabled]="togglingStatus()"
+                  (click)="reopenGroup()"
+                >
+                  {{ togglingStatus() ? 'מעבד…' : 'פתיחת הקבוצה מחדש' }}
+                </button>
+              } @else {
+                <p class="text-sm font-light text-slate-400 mb-3">
+                  כל החובות הוחזרו — אפשר לסגור את הקבוצה ולהעביר אותה לארכיון (לא פעילות).
+                </p>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-xs font-medium tracking-wide text-amber-100 cursor-pointer transition-all hover:bg-amber-400/20 hover:border-amber-400/50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  [disabled]="togglingStatus() || !allDebtsSettled()"
+                  (click)="closeGroup()"
+                >
+                  {{ togglingStatus() ? 'מעבד…' : 'סגירת הקבוצה' }}
+                </button>
+              }
+              @if (closeError()) {
+                <p class="text-xs font-light text-red-300/90 mt-3">{{ closeError() }}</p>
+              }
+            </div>
           } @else {
             <ul class="divide-y divide-white/5">
               @for (s of ov.settlements; track s.settlementId) {

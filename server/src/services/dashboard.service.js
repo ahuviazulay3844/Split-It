@@ -43,10 +43,17 @@ const getDashboard = async (userId) => {
   const totalIOwe = round2(iOwe.reduce((sum, x) => sum + x.amount, 0));
   const totalOwedToMe = round2(owedToMe.reduce((sum, x) => sum + x.amount, 0));
 
+  // Split the personal area into "active" and "closed" (inactive) groups.
+  // A group without an explicit status is treated as active for backward compatibility.
+  const activeGroups = groups.filter((g) => (g.status || 'active') !== 'closed');
+  const closedGroups = groups.filter((g) => g.status === 'closed');
+
   return {
     groupCount: groups.length,
     netBalance,
     groups,
+    activeGroups,
+    closedGroups,
     pendingSettlements: {
       count: settlements.length,
       totalIOwe,

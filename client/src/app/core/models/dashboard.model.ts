@@ -19,5 +19,7 @@ export interface Dashboard {
   groupCount: number;
   netBalance: number;
   groups: GroupSummary[];
+  activeGroups: GroupSummary[];
+  closedGroups: GroupSummary[];
   pendingSettlements: PendingSettlements;
 }

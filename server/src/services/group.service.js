@@ -3,7 +3,10 @@ const { randomBytes } = require('crypto');
 
 const Group = require('../models/Group.model');
 const GroupMember = require('../models/GroupMember.model');
+const Settlement = require('../models/Settlement.model');
 const User = require('../models/User.model');
+
+const round2 = (n) => Math.round(n * 100) / 100;
 
 /**
  * Generates a unique 8-character hex group code (e.g. "A3F2BC01").
@@ -121,7 +124,7 @@ const getUserActiveGroups = async (userId) => {
       .populate({
         path: 'groupId',
         match: { isActive: true },
-        select: 'groupCode groupName adminId totalExpenses avgPerPerson createdAt',
+        select: 'groupCode groupName adminId totalExpenses avgPerPerson status closedAt createdAt',
         populate: { path: 'adminId', select: 'firstName familyName email' },
       })
       .lean();
@@ -139,4 +142,83 @@ const getUserActiveGroups = async (userId) => {
   }
 };
 
-module.exports = { createGroup, getUserActiveGroups };
+/**
+ * Loads a group and enforces that the requester is its admin (manager).
+ * Throws 400 (bad id), 404 (missing/inactive) or 403 (not the admin).
+ */
+const assertGroupAdmin = async (groupId, userId) => {
+  if (!mongoose.isValidObjectId(groupId)) {
+    const err = new Error('Invalid group id');
+    err.status = 400;
+    throw err;
+  }
+
+  const group = await Group.findById(groupId);
+  if (!group || !group.isActive) {
+    const err = new Error('Group not found');
+    err.status = 404;
+    throw err;
+  }
+
+  if (String(group.adminId) !== String(userId)) {
+    const err = new Error('Only the group admin can perform this action');
+    err.status = 403;
+    throw err;
+  }
+
+  return group;
+};
+
+/**
+ * Closes a group. Only the admin may close it, and only when every debt has been
+ * settled: no open settlement edges remain and every active member's net balance
+ * is zero. The group stays visible (isActive) but moves to the 'closed' status so
+ * the personal area can list it under "inactive" groups.
+ */
+const closeGroup = async (groupId, userId) => {
+  const group = await assertGroupAdmin(groupId, userId);
+
+  if (group.status === 'closed') {
+    const err = new Error('Group is already closed');
+    err.status = 409;
+    throw err;
+  }
+
+  const openSettlements = await Settlement.countDocuments({ groupId, isSettled: false });
+  const members = await GroupMember.find({ groupId, status: 'Active' }).select('balance').lean();
+  const hasOutstandingBalance = members.some((m) => round2(m.balance) !== 0);
+
+  if (openSettlements > 0 || hasOutstandingBalance) {
+    const err = new Error('Cannot close the group while there are unsettled debts');
+    err.status = 400;
+    throw err;
+  }
+
+  group.status = 'closed';
+  group.closedAt = new Date();
+  await group.save();
+
+  return group;
+};
+
+/**
+ * Reopens a previously closed group. Admin only. Moves it back to 'active' and
+ * clears the closedAt timestamp.
+ */
+const reopenGroup = async (groupId, userId) => {
+  const group = await assertGroupAdmin(groupId, userId);
+
+  if (group.status !== 'closed') {
+    const err = new Error('Group is not closed');
+    err.status = 409;
+    throw err;
+  }
+
+  group.status = 'active';
+  group.closedAt = undefined;
+  await group.save();
+
+  return group;
+};
+
+module.exports = { createGroup, getUserActiveGroups, closeGroup, reopenGroup };
