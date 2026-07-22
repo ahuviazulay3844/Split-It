@@ -17,27 +17,51 @@
 const { generateContent } = require('../utils/geminiClient');
 const { toolDeclarations, executeAction } = require('./assistant.actions');
 
-const SYSTEM_INSTRUCTION = `You are SplitIt's in-app assistant. SplitIt lets people share group expenses and settle debts.
-Read the user's message and, when it clearly maps to one action, call that function with arguments you extract from the text.
+const SYSTEM_INSTRUCTION = `You are SplitIt's in-app assistant — an AUTONOMOUS agent. SplitIt lets people share group expenses and settle debts.
+Your job: read the user's message together with the whole conversation so far and, whenever the intent maps to an action, CALL that function with the arguments you infer. Strongly prefer acting over asking.
 
 LANGUAGE:
 - Always reply in the SAME language the user wrote in (Hebrew or English), in a short, warm tone.
 
-CONTEXT AWARENESS:
-- If the context metadata indicates the user is currently viewing a specific group page, assume that active group is the target for the action. Do NOT ask "Which group?" unless no group is active, the message clearly refers to a different group, or the target is otherwise genuinely ambiguous.
+AUTONOMY — ACT, DON'T INTERROGATE:
+- When the amount, the target group, and the category are present OR can be inferred with high confidence from the message + recent conversation, perform the action DIRECTLY.
+- Do NOT ask "are you sure?" and do NOT ask the user to confirm details you can reasonably infer.
+- Ask ONE short question ONLY when a required detail is genuinely missing and cannot be inferred (e.g. an expense with no amount at all), or when the target is truly ambiguous between several real options.
 
-ACT ONLY WHEN THE DATA IS CLEAR:
-- Only call a function when the intent AND the required details are unambiguous.
-- Never guess or invent a group name, a person, or an amount. If the group/person is unclear or a required detail is missing, do NOT call a function — ask ONE short, focused question instead.
-- If your confidence in the correct action or its arguments is below 85% (for example, a message could match several similar names like "trip" vs "trip 2025"), ask one concise clarifying question before performing any action.
+CONTEXT INFERENCE (infer the group from the conversation, not just the last line):
+- Location/activity hints map to the matching group. Examples: "אני בים המלח" → the group about a Dead Sea / vacation trip; "בסופר" / "at the supermarket" → the relevant household/shared group; "בטיול" → the trip group. Use group names, people, and places mentioned earlier in the chat.
+- If the context metadata says the user is viewing a specific group page, treat THAT group as the target by default.
+- Only when nothing in the conversation points to a group AND there is more than one candidate should you ask which group.
 
-CONFIRMATIONS:
-- The server may reply that it found a similar group and ask "Is that what you meant?". If the user then confirms (e.g. "yes", "yep", "כן", "נכון", "בדיוק"), call the SAME action again using the EXACT group name the server suggested, together with the details from the earlier message (amount, description, etc.).
-- Pass names roughly as the user wrote them; the server matches small typos and asks for confirmation when needed.
+CASE-INSENSITIVE, TOLERANT MATCHING:
+- Group-name matching is CASE-INSENSITIVE and tolerant of spelling and Hebrew-prefix differences. Pass the name roughly as the user wrote it (any casing) and let the server match it. If exactly one group clearly fits, use it without asking.
 
-HINTS:
-- "שווה בשווה" / "משותף לכולם" / "split equally" / no split detail => just call add_expense with the amount (and description); the server splits equally among all members.
-- Amounts may include currency words ("ש"ח", "שקל", "NIS", "₪") — extract only the number.`;
+AUTOMATIC CATEGORIZATION (semantic — never ask):
+- For every expense, infer a category from the MEANING of the text and pass it as the \`category\` argument. Do NOT ask the user for a category.
+- Guidance (Hebrew examples; use an English label for English messages): מסעדה/אוכל/סופר/קפה → "אוכל"; מונית/דלק/רכבת/אוטובוס/חניה → "תחבורה"; סרט/בר/הופעה/משחק → "בילוי"; שכירות/חשמל/מים/ארנונה → "דיור"; קניות/בגדים → "קניות". If nothing fits, use a short sensible label like "כללי"/"General".
+
+EXPENSE SPLITTING:
+- "שווה בשווה" / "משותף לכולם" / "split equally" / no split detail => call add_expense with the amount (+ description + inferred category); the server splits equally among all members.
+- Amounts may include currency words ("ש"ח", "שקל", "NIS", "₪") — extract only the number.
+
+CONFIRMATIONS (only when the server explicitly asks):
+- If the server replies that it found a similar group and asks "Is that what you meant?", and the user then confirms (e.g. "yes", "yep", "כן", "נכון", "בדיוק"), call the SAME action again using the EXACT group name the server suggested, together with the details from the earlier message (amount, description, category, etc.).`;
+
+// How many prior turns to keep as context. Configurable so the conversation is
+// effectively unlimited; a large default keeps long chats coherent while still
+// protecting the token budget. Set ASSISTANT_HISTORY_TURNS=0 to keep ALL turns.
+const HISTORY_TURNS = (() => {
+  const raw = process.env.ASSISTANT_HISTORY_TURNS;
+  if (raw === undefined || raw === '') return 50;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : 50;
+})();
+
+// Smart-retry knobs for transient Gemini "busy"/"rate" responses (not daily quota).
+const ASSISTANT_MAX_RETRIES = Number(process.env.ASSISTANT_MAX_RETRIES) || 2;
+const ASSISTANT_MAX_RETRY_WAIT_MS = Number(process.env.ASSISTANT_MAX_RETRY_WAIT_MS) || 4000;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Reformats stored chat history into Gemini `contents`. Only plain-text turns
@@ -122,14 +146,14 @@ const summarizeResult = (name, result = {}, message) => {
       return he
         ? `נוספה הוצאה של ${ils(result.amount)}${
             result.description ? ` (${result.description})` : ''
-          } בקבוצה "${result.groupName}", מחולק שווה בשווה. סך ההוצאות בקבוצה: ${ils(
-            result.groupTotalExpenses
-          )}.`
+          }${result.category ? ` · קטגוריה: ${result.category}` : ''} בקבוצה "${
+            result.groupName
+          }", מחולק שווה בשווה. סך ההוצאות בקבוצה: ${ils(result.groupTotalExpenses)}.`
         : `Added an expense of ${ils(result.amount)}${
             result.description ? ` (${result.description})` : ''
-          } in "${result.groupName}", split equally. Group total: ${ils(
-            result.groupTotalExpenses
-          )}.`;
+          }${result.category ? ` · category: ${result.category}` : ''} in "${
+            result.groupName
+          }", split equally. Group total: ${ils(result.groupTotalExpenses)}.`;
     case 'settle_debt':
       return he
         ? `סגרתי את החוב מול ${result.counterpart} בקבוצה "${result.groupName}" על סך ${ils(
@@ -188,6 +212,34 @@ const summarizeResult = (name, result = {}, message) => {
 };
 
 /**
+ * Calls Gemini with a smart, bounded retry so a busy/overloaded server doesn't
+ * kill the conversation. Transient 429s ('busy' / per-minute 'rate') are retried
+ * a few times, honouring the server-suggested wait (capped). A 'daily' quota hit
+ * is NOT retried (waiting can't reset it) and is re-thrown immediately so the
+ * caller can degrade to a friendly message. Non-429 errors bubble up unchanged.
+ */
+const generateWithRetry = async (payload) => {
+  let attempt = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    try {
+      return await generateContent(payload);
+    } catch (err) {
+      const retryable = err.status === 429 && err.quotaKind !== 'daily';
+      if (!retryable || attempt >= ASSISTANT_MAX_RETRIES) {
+        throw err;
+      }
+      // Wait what the server asked for (or a short default), capped so a single
+      // chat never blocks for long. Sleeping past the client-side cooldown also
+      // lets the next generateContent proceed.
+      const wait = Math.min(err.retryAfterMs || 1000, ASSISTANT_MAX_RETRY_WAIT_MS);
+      attempt += 1;
+      await sleep(wait);
+    }
+  }
+};
+
+/**
  * Main entry point. Processes one chat message for one authenticated user.
  *
  * @param {string} userId   the authenticated user's id.
@@ -196,20 +248,22 @@ const summarizeResult = (name, result = {}, message) => {
  * @returns {Promise<{reply:string, action:Object|null, affectedGroupId:string|null}>}
  */
 const chat = async (userId, message, history = []) => {
-  // Keep only recent turns — large histories burn TPM quota on the free tier.
-  const recentHistory = history.slice(-8);
+  // The conversation length itself is unlimited; we only bound how many prior
+  // turns we resend as context (0 = keep all). This protects the token budget
+  // without ever capping how many messages a user can send.
+  const recentHistory = HISTORY_TURNS > 0 ? history.slice(-HISTORY_TURNS) : history;
   const contents = [...historyToContents(recentHistory), { role: 'user', parts: [{ text: message }] }];
 
   let parts;
   try {
-    parts = await generateContent({
+    parts = await generateWithRetry({
       systemInstruction: SYSTEM_INSTRUCTION,
       contents,
       tools: toolDeclarations,
     });
   } catch (err) {
-    // Out of free-tier quota: degrade to a friendly "busy" reply instead of an
-    // error, so the chat never shows Google's raw quota dump.
+    // Every attempt hit a rate/busy/quota wall: degrade to a friendly "busy"
+    // reply instead of crashing the conversation with a raw quota dump.
     if (err.status === 429) {
       return { reply: busyMessage(message, err), action: null, affectedGroupId: null };
     }

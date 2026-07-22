@@ -101,11 +101,13 @@ export class AssistantChatComponent implements OnInit, OnDestroy {
     }
 
     // History is everything said so far (excluding the in-flight placeholder);
-    // the server appends the new message itself, so we capture it first.
+    // the server appends the new message itself, so we capture it first. We send
+    // a generous window so long conversations stay coherent; the server decides
+    // how many turns to actually feed the model.
     const history = this.messages()
       .filter((m) => !m.pending)
       .map((m) => ({ role: m.role, text: m.text }))
-      .slice(-20);
+      .slice(-100);
 
     this.messages.update((list) => [
       ...list,

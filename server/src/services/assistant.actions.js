@@ -107,14 +107,13 @@ const isFuzzyMatch = (needle, candidate) => {
  * chat, using a three-step "soft validation" flow (messages in the user's
  * language via `ctx.he`):
  *
- *   Step A — Perfect match: an exact (normalised) match continues immediately,
- *            no questions asked. This also prevents asking to confirm a name the
- *            user already typed exactly.
- *   Step B — High match: when there is no exact match but exactly ONE close
- *            (fuzzy) candidate, it does NOT guess — it returns a confirmation
- *            question ("I found the group X. Is that what you meant?").
- *   Step C — Uncertainty: when several candidates match, or none do, it stops,
- *            lists the available groups, and asks the user to be precise.
+ *   Step A — Perfect match: an exact (normalised, case-insensitive) match
+ *            continues immediately, no questions asked.
+ *   Step B — High-confidence match: when there is no exact match but exactly ONE
+ *            close (fuzzy) candidate, the agent acts autonomously and USES it —
+ *            no "is that what you meant?" round-trip.
+ *   Step C — Genuine ambiguity: only when several candidates match, or none do,
+ *            it stops, lists the available groups, and asks the user to pick.
  */
 const resolveGroup = async (userId, groupName, ctx = {}) => {
   const he = !!ctx.he;
@@ -161,13 +160,10 @@ const resolveGroup = async (userId, groupName, ctx = {}) => {
   // No exact match — gather close (fuzzy) candidates.
   const fuzzy = groups.filter((g) => isFuzzyMatch(groupName, g.groupName));
 
-  // STEP B — exactly one strong candidate: ask to confirm, do not guess.
+  // STEP B — exactly one strong candidate: act autonomously and use it (no
+  // confirmation round-trip). This is the "high-confidence => just do it" path.
   if (fuzzy.length === 1) {
-    throw assistantAsk(
-      he
-        ? `מצאתי את הקבוצה "${fuzzy[0].groupName}". לזה התכוונת? אם כן, כתבו "כן".`
-        : `I found the group "${fuzzy[0].groupName}". Is that what you meant? If so, reply "yes".`
-    );
+    return fuzzy[0];
   }
 
   // STEP C — several candidates: list them and ask the user to pick.
@@ -324,6 +320,11 @@ const actions = {
             type: 'string',
             description: 'Short description of the expense, e.g. "Food", "Groceries", "Taxi".',
           },
+          category: {
+            type: 'string',
+            description:
+              'The expense category, inferred SEMANTICALLY from the message meaning (do not ask the user). Use a short label in the user\'s language, e.g. "אוכל"/"Food", "תחבורה"/"Transport", "בילוי"/"Entertainment", "דיור"/"Housing". The server matches it case-insensitively and creates it if new.',
+          },
           paidBy: {
             type: 'string',
             description:
@@ -335,7 +336,7 @@ const actions = {
     },
     execute: async (userId, args = {}, ctx = {}) => {
       const he = !!ctx.he;
-      const { groupName, amount, description, paidBy } = args;
+      const { groupName, amount, description, paidBy, category } = args;
       if (!(amount > 0)) {
         throw assistantAsk(
           he ? 'מה סכום ההוצאה?' : 'What is the amount of the expense?'
@@ -351,12 +352,15 @@ const actions = {
       }
 
       // No `splits` => the expense service splits it equally among all active
-      // members ("shared by everyone"), which is the common case.
+      // members ("shared by everyone"), which is the common case. The category
+      // name is resolved (find-or-create, case-insensitive) inside the service
+      // transaction, so it never needs a separate request.
       const { expense, summary } = await addExpense(userId, {
         groupId: String(group._id),
         amount,
         description,
         payerId,
+        categoryName: category,
       });
 
       return {
@@ -365,6 +369,7 @@ const actions = {
         groupName: group.groupName,
         amount: expense.amount,
         description: expense.description || description || null,
+        category: (category && String(category).trim()) || null,
         splitType: expense.splitType,
         groupTotalExpenses: summary.totalExpenses,
         avgPerPerson: summary.avgPerPerson,

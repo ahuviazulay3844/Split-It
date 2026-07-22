@@ -11,13 +11,30 @@ const { simplifyDebts } = require('../utils/debtSimplification');
 const round2 = (n) => Math.round(n * 100) / 100;
 
 /**
+ * Finds-or-creates a category by name inside the active transaction, matching
+ * case-insensitively (so "Food"/"food"/"אוכל" never duplicate). Returns its id.
+ */
+const upsertCategoryByName = async (name, session) => {
+  const clean = String(name).trim();
+  const category = await Category.findOneAndUpdate(
+    { name: clean },
+    { $setOnInsert: { name: clean } },
+    { new: true, upsert: true, session, collation: { locale: 'en', strength: 2 } }
+  );
+  return category._id;
+};
+
+/**
  * Resolves the category for an expense inside the active transaction:
  *  - If a categoryId is supplied, verifies it exists (400 otherwise).
- *  - If omitted, finds-or-creates the configurable default category so every
- *    expense always carries a category. Uses an upsert to stay atomic and
- *    collision-safe under the unique name index.
+ *  - Else if a categoryName is supplied (e.g. inferred semantically by the AI
+ *    assistant), finds-or-creates that category, case-insensitively.
+ *  - If neither is given, finds-or-creates the configurable default category so
+ *    every expense always carries a category.
+ * All paths use an upsert so they stay atomic and collision-safe under the
+ * unique name index.
  */
-const resolveCategoryId = async (categoryId, session) => {
+const resolveCategoryId = async (categoryId, session, categoryName) => {
   if (categoryId) {
     const exists = await Category.exists({ _id: categoryId }).session(session);
     if (!exists) {
@@ -28,13 +45,12 @@ const resolveCategoryId = async (categoryId, session) => {
     return categoryId;
   }
 
+  if (categoryName && String(categoryName).trim()) {
+    return upsertCategoryByName(categoryName, session);
+  }
+
   const defaultName = process.env.DEFAULT_CATEGORY_NAME || 'General';
-  const category = await Category.findOneAndUpdate(
-    { name: defaultName },
-    { $setOnInsert: { name: defaultName } },
-    { new: true, upsert: true, session, collation: { locale: 'en', strength: 2 } }
-  );
-  return category._id;
+  return upsertCategoryByName(defaultName, session);
 };
 
 /**
@@ -146,7 +162,7 @@ const recalculateGroup = async (groupId, session) => {
  */
 const addExpense = async (
   requesterId,
-  { groupId, amount, description, categoryId, payerId, date, splits }
+  { groupId, amount, description, categoryId, categoryName, payerId, date, splits }
 ) => {
   if (!mongoose.isValidObjectId(groupId)) {
     const err = new Error('Invalid group id');
@@ -220,7 +236,7 @@ const addExpense = async (
     }
     // --- סוף השינוי ---
 
-    const resolvedCategoryId = await resolveCategoryId(categoryId, session);
+    const resolvedCategoryId = await resolveCategoryId(categoryId, session, categoryName);
 
     const [expense] = await Expense.create(
       [
