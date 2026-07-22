@@ -166,6 +166,31 @@ const resolveGroup = async (userId, groupName, ctx = {}) => {
     return fuzzy[0];
   }
 
+  // STEP B2 — if the user supplied a manager/admin name instead of a group name,
+  // resolve it from the active groups' admin names.
+  const adminMatches = groups.filter((g) => {
+    if (!g.adminId) return false;
+    const adminName = fullName(g.adminId);
+    return (
+      isFuzzyMatch(groupName, adminName) ||
+      isFuzzyMatch(groupName, g.adminId.firstName) ||
+      isFuzzyMatch(groupName, g.adminId.familyName)
+    );
+  });
+  if (adminMatches.length === 1) {
+    return adminMatches[0];
+  }
+  if (adminMatches.length > 1) {
+    const names = adminMatches
+      .map((g) => `${g.groupName} (admin: ${fullName(g.adminId)})`)
+      .join(', ');
+    throw assistantAsk(
+      he
+        ? `יש כמה קבוצות עם שם מנהל זהה או דומה: ${names}. לאיזו התכוונת?`
+        : `I found several groups whose manager matches that name: ${names}. Which one did you mean?`
+    );
+  }
+
   // STEP C — several candidates: list them and ask the user to pick.
   if (fuzzy.length > 1) {
     const names = fuzzy.map((g) => g.groupName).join(', ');
@@ -325,6 +350,12 @@ const actions = {
             description:
               'The expense category, inferred SEMANTICALLY from the message meaning (do not ask the user). Use a short label in the user\'s language, e.g. "אוכל"/"Food", "תחבורה"/"Transport", "בילוי"/"Entertainment", "דיור"/"Housing". The server matches it case-insensitively and creates it if new.',
           },
+          participants: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Names or emails of the members who should share this expense. If provided, split the expense only among these members instead of everyone in the group.',
+          },
           paidBy: {
             type: 'string',
             description:
@@ -336,7 +367,7 @@ const actions = {
     },
     execute: async (userId, args = {}, ctx = {}) => {
       const he = !!ctx.he;
-      const { groupName, amount, description, paidBy, category } = args;
+      const { groupName, amount, description, paidBy, category, participants } = args;
       if (!(amount > 0)) {
         throw assistantAsk(
           he ? 'מה סכום ההוצאה?' : 'What is the amount of the expense?'
@@ -351,6 +382,31 @@ const actions = {
         payerId = String(payer._id);
       }
 
+      let splits;
+      if (Array.isArray(participants) && participants.length > 0) {
+        const resolved = [];
+        for (const ref of participants) {
+          const user = await resolveUser(ref, null, ctx);
+          resolved.push(user);
+        }
+        const uniqueIds = [...new Set(resolved.map((u) => String(u._id)))];
+        if (uniqueIds.length === 0) {
+          throw assistantAsk(
+            he
+              ? 'על מי לחלק את ההוצאה? כתוב לפחות שם אחד של חבר/ה בקבוצה.'
+              : 'Who should share this expense? Please provide at least one group member.'
+          );
+        }
+        const amountInAgorot = Math.round(amount * 100);
+        const baseShare = Math.floor(amountInAgorot / uniqueIds.length);
+        let remainder = amountInAgorot % uniqueIds.length;
+        splits = uniqueIds.map((userId) => {
+          const shareInAgorot = baseShare + (remainder > 0 ? 1 : 0);
+          if (remainder > 0) remainder -= 1;
+          return { userId, amount: shareInAgorot / 100 };
+        });
+      }
+
       // No `splits` => the expense service splits it equally among all active
       // members ("shared by everyone"), which is the common case. The category
       // name is resolved (find-or-create, case-insensitive) inside the service
@@ -361,6 +417,7 @@ const actions = {
         description,
         payerId,
         categoryName: category,
+        splits,
       });
 
       return {

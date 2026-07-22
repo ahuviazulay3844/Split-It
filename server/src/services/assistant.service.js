@@ -27,6 +27,8 @@ AUTONOMY — ACT, DON'T INTERROGATE:
 - When the amount, the target group, and the category are present OR can be inferred with high confidence from the message + recent conversation, perform the action DIRECTLY.
 - Do NOT ask "are you sure?" and do NOT ask the user to confirm details you can reasonably infer.
 - Ask ONE short question ONLY when a required detail is genuinely missing and cannot be inferred (e.g. an expense with no amount at all), or when the target is truly ambiguous between several real options.
+- If the user answers your clarifying question with the missing information, do not ask again. Use the new answer immediately to resolve the action and proceed.
+- If the user replies with a person or manager name after a question like "with whom?" or "which group?", interpret that as the missing field and continue.
 
 CONTEXT INFERENCE (infer the group from the conversation, not just the last line):
 - Location/activity hints map to the matching group. Examples: "אני בים המלח" → the group about a Dead Sea / vacation trip; "בסופר" / "at the supermarket" → the relevant household/shared group; "בטיול" → the trip group. Use group names, people, and places mentioned earlier in the chat.
@@ -42,7 +44,9 @@ AUTOMATIC CATEGORIZATION (semantic — never ask):
 
 EXPENSE SPLITTING:
 - "שווה בשווה" / "משותף לכולם" / "split equally" / no split detail => call add_expense with the amount (+ description + inferred category); the server splits equally among all members.
-- Amounts may include currency words ("ש"ח", "שקל", "NIS", "₪") — extract only the number.
+- If the user says the expense should be split only between specific members (e.g. "עם רוני ודנה בלבד", "רק אנחנו שניים"), populate the \`participants\` field and do not split among the whole group.
+- If the user gives a partial, fuzzy, or repeated description of the group name, try to infer the closest existing group and, when in doubt, ask one confirmation question like "האם התכוונת לקבוצה X?" instead of asking the same generic question again.
+- Amounts may include currency words ("ש\"ח", "שקל", "NIS", "₪") — extract only the number.
 
 CONFIRMATIONS (only when the server explicitly asks):
 - If the server replies that it found a similar group and asks "Is that what you meant?", and the user then confirms (e.g. "yes", "yep", "כן", "נכון", "בדיוק"), call the SAME action again using the EXACT group name the server suggested, together with the details from the earlier message (amount, description, category, etc.).`;
@@ -142,18 +146,22 @@ const summarizeResult = (name, result = {}, message) => {
         : `Group "${result.groupName}" created! 🎉 Members: ${
             (result.members || []).join(', ') || '—'
           }. Join code: ${result.groupCode}.`;
-    case 'add_expense':
+    case 'add_expense': {
+      const splitPhrase = result.splitType === 'custom'
+        ? he ? 'מחולק בין המשתתפים שצוינו' : 'split among the specified participants'
+        : he ? 'מחולק שווה בשווה' : 'split equally';
       return he
         ? `נוספה הוצאה של ${ils(result.amount)}${
             result.description ? ` (${result.description})` : ''
           }${result.category ? ` · קטגוריה: ${result.category}` : ''} בקבוצה "${
             result.groupName
-          }", מחולק שווה בשווה. סך ההוצאות בקבוצה: ${ils(result.groupTotalExpenses)}.`
+          }", ${splitPhrase}. סך ההוצאות בקבוצה: ${ils(result.groupTotalExpenses)}.`
         : `Added an expense of ${ils(result.amount)}${
             result.description ? ` (${result.description})` : ''
           }${result.category ? ` · category: ${result.category}` : ''} in "${
             result.groupName
-          }", split equally. Group total: ${ils(result.groupTotalExpenses)}.`;
+          }", ${splitPhrase}. Group total: ${ils(result.groupTotalExpenses)}.`;
+    }
     case 'settle_debt':
       return he
         ? `סגרתי את החוב מול ${result.counterpart} בקבוצה "${result.groupName}" על סך ${ils(
